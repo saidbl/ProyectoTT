@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SAE CDMX — Dashboard</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">▥</div>
+        <div><strong>SAE CDMX</strong><span>Sistema de análisis económico</span></div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">⌂ <span>Dashboard principal</span></button>
+        <button class="nav-item" data-view="alcaldia">⌖ <span>Consulta por alcaldía</span></button>
+        <button class="nav-item" data-view="detalle">▤ <span>Detalle de unidad</span></button>
+        <button class="nav-item" data-view="prediccion">⌁ <span>Módulo de predicción</span></button>
+      </nav>
+      <div class="sidebar-foot">TT 2026-B023<br/>MVP · Incremento 1–3</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Ciudad de México</p>
+          <h1 id="page-title">Dashboard principal</h1>
+        </div>
+        <div class="status-pill" id="api-status">API: comprobando…</div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="filters card">
+          <label>Alcaldía<select id="filter-alcaldia"><option value="">Todas</option></select></label>
+          <label>Sector<select id="filter-sector"><option value="">Todos</option></select></label>
+          <label>Límite de puntos<select id="filter-limit"><option>500</option><option selected>1200</option><option>2500</option></select></label>
+          <button id="apply-filters" class="primary">Aplicar filtros</button>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi card"><span>Unidades económicas</span><strong id="kpi-unidades">—</strong><small>según filtros activos</small></article>
+          <article class="kpi card"><span>Actividad líder</span><strong id="kpi-actividad">—</strong><small id="kpi-actividad-count">sin datos</small></article>
+          <article class="kpi card"><span>Sector líder</span><strong id="kpi-sector">—</strong><small id="kpi-sector-count">sin datos</small></article>
+          <article class="kpi card"><span>Estado del sistema</span><strong id="kpi-status">Inicializando</strong><small>PostGIS + FastAPI</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="card map-card">
+            <div class="card-head"><div><h2>Mapa de unidades económicas</h2><p>Distribución geoespacial en CDMX</p></div><span class="tag">Leaflet + PostGIS</span></div>
+            <div id="map"></div>
+          </article>
+
+          <article class="card side-chart">
+            <div class="card-head"><div><h2>Top actividades</h2><p>SCIAN con mayor presencia</p></div></div>
+            <div id="top-activities" class="bars"></div>
+          </article>
+        </div>
+
+        <div class="bottom-grid">
+          <article class="card"><div class="card-head"><div><h2>Distribución por sector</h2><p>Agrupación definida en la base</p></div></div><div id="sector-bars" class="bars horizontal"></div></article>
+          <article class="card"><div class="card-head"><div><h2>Concentración por alcaldía</h2><p>Máximo 16 demarcaciones</p></div></div><div id="alcaldia-bars" class="bars horizontal"></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="view-alcaldia">
+        <div class="card module-card">
+          <h2>Consulta por alcaldía</h2>
+          <p>Este módulo reutiliza los filtros del dashboard. Selecciona una alcaldía y vuelve al Dashboard para ver su mapa, indicadores y distribución.</p>
+          <div class="module-callout">La primera entrega deja listo el endpoint <code>/api/dashboard/resumen?alcaldia_id=…</code> y el GeoJSON filtrado.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-detalle">
+        <div class="card module-card">
+          <h2>Detalle de unidad económica</h2>
+          <p>Haz clic en cualquier punto del mapa. El popup muestra la unidad y abre los datos principales de actividad, sector y alcaldía.</p>
+          <div id="unit-detail" class="detail-panel">Aún no has seleccionado una unidad.</div>
+        </div>
+      </section>
+
+      <section class="view" id="view-prediccion">
+        <div class="prediction-layout">
+          <article class="card">
+            <div class="card-head"><div><h2>Módulo de predicción</h2><p>Selecciona un punto sobre el mapa</p></div><span class="tag warning">Fase 2: modelo ML</span></div>
+            <div id="prediction-map"></div>
+          </article>
+          <article class="card prediction-panel">
+            <h2>Ubicación seleccionada</h2>
+            <dl><dt>Latitud</dt><dd id="pred-lat">—</dd><dt>Longitud</dt><dd id="pred-lon">—</dd><dt>Unidades cercanas</dt><dd id="pred-nearby">—</dd><dt>Actividad local dominante</dt><dd id="pred-dominant">—</dd></dl>
+            <button id="predict-btn" class="primary" disabled>Analizar punto seleccionado</button>
+            <p id="prediction-message" class="muted">El MVP deja el contrato de integración del modelo sin inventar una predicción no entrenada.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
