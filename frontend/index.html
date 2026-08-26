@@ -13,71 +13,202 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">▥</div>
-        <div><strong>SAE CDMX</strong><span>Sistema de análisis económico</span></div>
+        <div>
+          <strong>SAE CDMX</strong>
+          <span>Sistema de análisis económico</span>
+        </div>
       </div>
-      <nav>
-        <button class="nav-item active" data-view="dashboard">⌂ <span>Dashboard principal</span></button>
-        <button class="nav-item" data-view="alcaldia">⌖ <span>Consulta por alcaldía</span></button>
-        <button class="nav-item" data-view="detalle">▤ <span>Detalle de unidad</span></button>
-        <button class="nav-item" data-view="prediccion">⌁ <span>Módulo de predicción</span></button>
+
+      <nav class="main-nav">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Dashboard principal</span></button>
+        <button class="nav-item" data-view="alcaldia"><span class="nav-icon">⌖</span><span>Consulta por alcaldía</span></button>
+        <button class="nav-item" data-view="detalle"><span class="nav-icon">▤</span><span>Detalle de unidad económica</span></button>
+        <button class="nav-item" data-view="prediccion"><span class="nav-icon">⌁</span><span>Módulo de predicción</span></button>
+        <button class="nav-item disabled-nav" type="button" title="Se habilitará al integrar los modelos"><span class="nav-icon">◫</span><span>Resultado de predicción</span></button>
+        <button class="nav-item disabled-nav" type="button"><span class="nav-icon">ⓘ</span><span>Acerca del sistema</span></button>
       </nav>
-      <div class="sidebar-foot">TT 2026-B023<br/>MVP · Incremento 1–3</div>
+
+      <div class="sidebar-foot">
+        <span>Trabajo Terminal 2026-B023</span>
+        <strong>ESCOM · IPN</strong>
+      </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Ciudad de México</p>
+          <div class="breadcrumb">Inicio <span>›</span> <strong id="breadcrumb-current">Dashboard principal</strong></div>
           <h1 id="page-title">Dashboard principal</h1>
+          <p class="page-subtitle">Panorama general de las unidades económicas registradas en la Ciudad de México.</p>
         </div>
-        <div class="status-pill" id="api-status">API: comprobando…</div>
+
+        <div class="topbar-right">
+          <div class="update-block">
+            <span>Última consulta</span>
+            <strong id="last-query">—</strong>
+          </div>
+          <div class="api-dot" id="api-dot"></div>
+          <div class="user-chip">
+            <div class="user-avatar">U</div>
+            <div><strong>Usuario</strong><span id="api-status">Comprobando API…</span></div>
+          </div>
+        </div>
       </header>
 
       <section class="view active" id="view-dashboard">
-        <div class="filters card">
-          <label>Alcaldía<select id="filter-alcaldia"><option value="">Todas</option></select></label>
-          <label>Sector<select id="filter-sector"><option value="">Todos</option></select></label>
-          <label>Límite de puntos<select id="filter-limit"><option>500</option><option selected>1200</option><option>2500</option></select></label>
-          <button id="apply-filters" class="primary">Aplicar filtros</button>
-        </div>
+        <div class="dashboard-primary-grid">
+          <aside class="card filters-panel">
+            <div class="section-title compact">
+              <div>
+                <span class="section-kicker">Filtros</span>
+                <h2>Explorar información</h2>
+              </div>
+              <button id="clear-filters" class="text-button" type="button">Limpiar</button>
+            </div>
 
-        <div class="kpi-grid">
-          <article class="kpi card"><span>Unidades económicas</span><strong id="kpi-unidades">—</strong><small>según filtros activos</small></article>
-          <article class="kpi card"><span>Actividad líder</span><strong id="kpi-actividad">—</strong><small id="kpi-actividad-count">sin datos</small></article>
-          <article class="kpi card"><span>Sector líder</span><strong id="kpi-sector">—</strong><small id="kpi-sector-count">sin datos</small></article>
-          <article class="kpi card"><span>Estado del sistema</span><strong id="kpi-status">Inicializando</strong><small>PostGIS + FastAPI</small></article>
-        </div>
+            <label class="field">Alcaldía
+              <select id="filter-alcaldia"><option value="">Todas las alcaldías</option></select>
+            </label>
 
-        <div class="dashboard-grid">
+            <label class="field">Sector económico
+              <select id="filter-sector"><option value="">Todos los sectores</option></select>
+            </label>
+
+            <label class="field">Actividad económica (SCIAN)
+              <select id="filter-actividad"><option value="">Todas las actividades</option></select>
+            </label>
+
+            <label class="field">Límite de puntos en mapa
+              <select id="filter-limit">
+                <option value="500">50,000 puntos</option>
+                <option value="1000" selected>100,000 puntos</option>
+                <option value="1200">250,000 puntos</option>
+                <option value="5000">500,000 puntos</option>
+              </select>
+            </label>
+
+            <button id="apply-filters" class="primary wide" type="button">Aplicar filtros</button>
+
+            <div class="filter-note">
+              <span class="info-dot">i</span>
+              Los filtros actualizan mapa, resumen y gráficas de forma conjunta.
+            </div>
+          </aside>
+
           <article class="card map-card">
-            <div class="card-head"><div><h2>Mapa de unidades económicas</h2><p>Distribución geoespacial en CDMX</p></div><span class="tag">Leaflet + PostGIS</span></div>
+            <div class="section-title map-head">
+              <div>
+                <span class="section-kicker">Visualización geográfica</span>
+                <h2>Mapa de unidades económicas</h2>
+                <p>Distribución de establecimientos y delimitación territorial de las alcaldías.</p>
+              </div>
+              <span class="tag">Leaflet + PostGIS</span>
+            </div>
             <div id="map"></div>
+            <div class="map-legend">
+              <span><i class="legend-dot unit"></i> Unidad económica</span>
+              <span><i class="legend-line"></i> Límite de alcaldía</span>
+            </div>
           </article>
 
-          <article class="card side-chart">
-            <div class="card-head"><div><h2>Top actividades</h2><p>SCIAN con mayor presencia</p></div></div>
-            <div id="top-activities" class="bars"></div>
+          <aside class="card summary-panel">
+            <div class="section-title compact">
+              <div>
+                <span class="section-kicker">Indicadores</span>
+                <h2>Resumen general</h2>
+              </div>
+            </div>
+
+            <div class="summary-list">
+              <div class="summary-item blue">
+                <div class="summary-icon">▦</div>
+                <div><strong id="summary-total">—</strong><span>Unidades económicas</span></div>
+              </div>
+              <div class="summary-item green">
+                <div class="summary-icon">◉</div>
+                <div><strong id="summary-alcaldias">—</strong><span>Alcaldías representadas</span></div>
+              </div>
+              <div class="summary-item violet">
+                <div class="summary-icon">◆</div>
+                <div><strong id="summary-activity-code">—</strong><span id="summary-activity-name">Actividad económica líder</span></div>
+              </div>
+              <div class="summary-item orange">
+                <div class="summary-icon">◫</div>
+                <div><strong id="summary-sector">—</strong><span id="summary-sector-count">Sector predominante</span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="dashboard-secondary-grid">
+          <article class="card table-card">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">Ranking</span>
+                <h2>Top 5 actividades económicas (SCIAN)</h2>
+                <p>Actividades con mayor presencia bajo los filtros activos.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="ranking-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Actividad económica</th>
+                    <th class="numeric">Unidades</th>
+                    <th class="numeric">% del total</th>
+                  </tr>
+                </thead>
+                <tbody id="top-activities-table">
+                  <tr><td colspan="4" class="empty-cell">Cargando datos…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card chart-card donut-card">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">Composición</span>
+                <h2>Distribución por sector</h2>
+                <p>Participación relativa por sector económico.</p>
+              </div>
+            </div>
+            <div class="donut-layout">
+              <div class="donut-container"><canvas id="sector-chart"></canvas></div>
+              <div id="sector-legend" class="custom-legend"></div>
+            </div>
+          </article>
+
+          <article class="card chart-card alcaldia-chart-card">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">Territorio</span>
+                <h2>Concentración geográfica por alcaldía</h2>
+                <p>Top 10 demarcaciones por número de unidades.</p>
+              </div>
+            </div>
+            <div class="bar-chart-container"><canvas id="alcaldia-chart"></canvas></div>
           </article>
         </div>
 
-        <div class="bottom-grid">
-          <article class="card"><div class="card-head"><div><h2>Distribución por sector</h2><p>Agrupación definida en la base</p></div></div><div id="sector-bars" class="bars horizontal"></div></article>
-          <article class="card"><div class="card-head"><div><h2>Concentración por alcaldía</h2><p>Máximo 16 demarcaciones</p></div></div><div id="alcaldia-bars" class="bars horizontal"></div></article>
+        <div class="dashboard-footnote card">
+          <span class="footnote-icon">i</span>
+          <p>La visualización se construye a partir de registros DENUE almacenados en PostgreSQL/PostGIS y clasificados mediante SCIAN. Los resultados responden a los filtros activos del dashboard.</p>
         </div>
       </section>
 
       <section class="view" id="view-alcaldia">
         <div class="card module-card">
           <h2>Consulta por alcaldía</h2>
-          <p>Este módulo reutiliza los filtros del dashboard. Selecciona una alcaldía y vuelve al Dashboard para ver su mapa, indicadores y distribución.</p>
-          <div class="module-callout">La primera entrega deja listo el endpoint <code>/api/dashboard/resumen?alcaldia_id=…</code> y el GeoJSON filtrado.</div>
+          <p>Este módulo será el siguiente en desarrollarse una vez que se cierre el dashboard principal.</p>
         </div>
       </section>
 
       <section class="view" id="view-detalle">
         <div class="card module-card">
           <h2>Detalle de unidad económica</h2>
-          <p>Haz clic en cualquier punto del mapa. El popup muestra la unidad y abre los datos principales de actividad, sector y alcaldía.</p>
+          <p>Haz clic en cualquier punto del mapa y selecciona “Ver detalle”.</p>
           <div id="unit-detail" class="detail-panel">Aún no has seleccionado una unidad.</div>
         </div>
       </section>
@@ -85,20 +216,22 @@
       <section class="view" id="view-prediccion">
         <div class="prediction-layout">
           <article class="card">
-            <div class="card-head"><div><h2>Módulo de predicción</h2><p>Selecciona un punto sobre el mapa</p></div><span class="tag warning">Fase 2: modelo ML</span></div>
+            <div class="section-title"><div><span class="section-kicker">Análisis espacial</span><h2>Módulo de predicción</h2><p>Selecciona un punto sobre el mapa.</p></div><span class="tag warning">Modelo ML pendiente</span></div>
             <div id="prediction-map"></div>
           </article>
           <article class="card prediction-panel">
             <h2>Ubicación seleccionada</h2>
             <dl><dt>Latitud</dt><dd id="pred-lat">—</dd><dt>Longitud</dt><dd id="pred-lon">—</dd><dt>Unidades cercanas</dt><dd id="pred-nearby">—</dd><dt>Actividad local dominante</dt><dd id="pred-dominant">—</dd></dl>
-            <button id="predict-btn" class="primary" disabled>Analizar punto seleccionado</button>
-            <p id="prediction-message" class="muted">El MVP deja el contrato de integración del modelo sin inventar una predicción no entrenada.</p>
+            <button id="predict-btn" class="primary wide" disabled>Analizar punto seleccionado</button>
+            <p id="prediction-message" class="muted">La interacción espacial ya está preparada; la predicción se habilitará al integrar los modelos entrenados.</p>
           </article>
         </div>
       </section>
     </main>
   </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="/assets/app.js"></script>
 </body>
 </html>

@@ -11,17 +11,24 @@ router = APIRouter(tags=["units"])
 def unidades_geojson(
     alcaldia_id: int | None = Query(default=None),
     sector_id: int | None = Query(default=None),
+    actividad_id: int | None = Query(default=None),
     limit: int = Query(default=1200, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     conditions = ["u.geom IS NOT NULL"]
     params: dict[str, int] = {"limit": limit}
+
     if alcaldia_id is not None:
         conditions.append("u.alcaldia_id = :alcaldia_id")
         params["alcaldia_id"] = alcaldia_id
+
     if sector_id is not None:
         conditions.append("a.sector_id = :sector_id")
         params["sector_id"] = sector_id
+
+    if actividad_id is not None:
+        conditions.append("u.actividad_id = :actividad_id")
+        params["actividad_id"] = actividad_id
 
     rows = db.execute(text(f"""
         SELECT

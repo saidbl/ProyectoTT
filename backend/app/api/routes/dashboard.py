@@ -11,6 +11,7 @@ router = APIRouter(tags=["dashboard"])
 def dashboard_resumen(
     alcaldia_id: int | None = Query(default=None),
     sector_id: int | None = Query(default=None),
+    actividad_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return get_dashboard_summary(db, alcaldia_id, sector_id)
+    return get_dashboard_summary(db, alcaldia_id, sector_id, actividad_id)
