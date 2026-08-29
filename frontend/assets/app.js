@@ -4,6 +4,13 @@ let map;
 let unitLayer;
 let alcaldiaLayer;
 let predictionMap;
+let alcaldiaMap;
+let alcaldiaUnitLayer;
+let alcaldiaBoundaryLayer;
+let alcaldiaMapViewportEnabled = false;
+let alcaldiaMapReloadTimer = null;
+let alcaldiaScianChart;
+let alcaldiaComparisonChart;
 let predictionMarker;
 let selectedPredictionPoint = null;
 let sectorChart;
@@ -11,6 +18,7 @@ let alcaldiaChart;
 let alcaldiasGeoJSON = null;
 let mapViewportEnabled = false;
 let mapReloadTimer = null;
+let alcaldiaLoadVersion = 0;
 
 const $ = (id) => document.getElementById(id);
 const fmt = (value) => new Intl.NumberFormat('es-MX').format(Number(value) || 0);
@@ -25,11 +33,13 @@ async function api(path, options) {
 function initMaps() {
   map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([19.4326, -99.1332], 10);
   predictionMap = L.map('prediction-map').setView([19.4326, -99.1332], 10);
+  alcaldiaMap = L.map('alcaldia-map', { zoomControl: true, preferCanvas: true }).setView([19.4326, -99.1332], 10);
 
   const tiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const attribution = '&copy; OpenStreetMap contributors';
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(map);
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(predictionMap);
+  L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(alcaldiaMap);
 
   predictionMap.on('click', onPredictionClick);
 
@@ -37,6 +47,12 @@ function initMaps() {
     if (!mapViewportEnabled) return;
     clearTimeout(mapReloadTimer);
     mapReloadTimer = setTimeout(() => loadUnits().catch(console.error), 220);
+  });
+
+  alcaldiaMap.on('moveend', () => {
+    if (!alcaldiaMapViewportEnabled || !$('alcaldia-select').value) return;
+    clearTimeout(alcaldiaMapReloadTimer);
+    alcaldiaMapReloadTimer = setTimeout(() => loadAlcaldiaUnits().catch(console.error), 220);
   });
 }
 
@@ -50,8 +66,10 @@ async function bootstrap() {
       api('/actividades'),
     ]);
 
+    $('alcaldia-select').innerHTML = '';
     alcaldias.forEach((a) => {
       $('filter-alcaldia').insertAdjacentHTML('beforeend', `<option value="${a.id}">${escapeHtml(a.nombre)}</option>`);
+      $('alcaldia-select').insertAdjacentHTML('beforeend', `<option value="${a.id}">${escapeHtml(a.nombre)}</option>`);
     });
 
     sectores.forEach((s) => {
@@ -59,9 +77,27 @@ async function bootstrap() {
     });
 
     renderActivityOptions(actividades);
+    if (alcaldias.length) {
+      const preferred =
+        alcaldias.find((a) => a.nombre === 'Benito Juárez') || alcaldias[0];
+
+      $('alcaldia-select').value = String(preferred.id);
+    }
+
     await loadAlcaldiasLayer();
-    await Promise.all([loadDashboard(), loadDataUpdateStatus()]);
+
+    await Promise.all([
+      loadDashboard(),
+      loadDataUpdateStatus(),
+    ]);
+
     mapViewportEnabled = true;
+    if (
+      $('view-alcaldia').classList.contains('active') &&
+      $('alcaldia-select').value
+    ) {
+      await loadAlcaldiaModule();
+    }
   } catch (err) {
     console.error(err);
     renderDashboardError(err.message);
@@ -315,6 +351,375 @@ async function updateAlcaldiaLayerStyle() {
   }
 }
 
+
+function selectedAlcaldiaFeature() {
+  if (!alcaldiasGeoJSON) return null;
+  const selectedId = Number($('alcaldia-select').value || 0);
+  return alcaldiasGeoJSON.features.find((f) => Number(f.properties.id) === selectedId) || null;
+}
+
+function renderAlcaldiaBoundary({ fit = false } = {}) {
+  const feature = selectedAlcaldiaFeature();
+  if (!feature || !alcaldiaMap) return;
+  if (alcaldiaBoundaryLayer) alcaldiaBoundaryLayer.remove();
+
+  alcaldiaBoundaryLayer = L.geoJSON(feature, {
+    style: {
+      color: '#5141d6',
+      weight: 2,
+      fillColor: '#6b5ce7',
+      fillOpacity: .10,
+    },
+  }).addTo(alcaldiaMap);
+
+  if (fit && alcaldiaBoundaryLayer.getBounds().isValid()) {
+    alcaldiaMapViewportEnabled = false;
+    alcaldiaMap.fitBounds(alcaldiaBoundaryLayer.getBounds(), { padding: [18, 18], maxZoom: 13 });
+    setTimeout(() => { alcaldiaMapViewportEnabled = true; }, 300);
+  }
+}
+
+async function loadAlcaldiaModule() {
+  const alcaldiaId = Number($('alcaldia-select').value || 0);
+
+  if (!alcaldiaId) {
+    return;
+  }
+  const loadVersion = ++alcaldiaLoadVersion;
+
+  clearTimeout(alcaldiaMapReloadTimer);
+  alcaldiaMapViewportEnabled = false;
+
+  $('alcaldia-map-status').textContent = 'Cargando alcaldía…';
+
+  try {
+    const summary = await api(
+      `/alcaldias/${alcaldiaId}/resumen`
+    );
+    if (
+      loadVersion !== alcaldiaLoadVersion ||
+      Number($('alcaldia-select').value || 0) !== alcaldiaId
+    ) {
+      return;
+    }
+
+    renderAlcaldiaSummary(summary);
+    renderAlcaldiaTopActivities(summary.top_actividades || []);
+    renderAlcaldiaScianChart(summary.distribucion_scian || []);
+
+    renderAlcaldiaComparisonChart(
+      summary.distribucion_alcaldias || [],
+      alcaldiaId
+    );
+    renderAlcaldiaBoundary({
+      fit: true,
+    });
+    setTimeout(() => {
+      if (
+        loadVersion !== alcaldiaLoadVersion ||
+        Number($('alcaldia-select').value || 0) !== alcaldiaId
+      ) {
+        return;
+      }
+
+      alcaldiaMap.invalidateSize();
+
+      loadAlcaldiaUnits(alcaldiaId)
+        .catch(console.error);
+
+    }, 100);
+
+  } catch (err) {
+    if (loadVersion !== alcaldiaLoadVersion) {
+      return;
+    }
+
+    console.error(err);
+    renderAlcaldiaError(err.message);
+  }
+}
+
+function renderAlcaldiaSummary(summary) {
+  const alc = summary.alcaldia || {};
+  $('alc-info-name').textContent = alc.nombre || '—';
+  $('alc-info-cvegeo').textContent = alc.cvegeo || '—';
+  $('alc-info-total').textContent = fmt(summary.total_unidades);
+  $('alc-info-activities').textContent = `${fmt(summary.actividades_distintas)} de 20`;
+
+  const activity = summary.actividad_lider;
+  $('alc-info-leader').textContent = activity
+    ? `${activity.codigo_scian} · ${activity.descripcion} (${fmt(activity.unidades)})`
+    : '—';
+
+  const sector = summary.sector_lider;
+  $('alc-info-sector').textContent = sector
+    ? `${sector.nombre} · ${fmt(sector.unidades)} (${pct(sector.porcentaje, 2)})`
+    : '—';
+
+  $('alc-info-rank').textContent = summary.ranking_cdmx
+    ? `${summary.ranking_cdmx}.° de 16`
+    : '—';
+}
+
+function renderAlcaldiaTopActivities(items) {
+  const tbody = $('alcaldia-top-table');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No hay registros para esta alcaldía.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map((item) => `
+    <tr>
+      <td><span class="activity-code">${escapeHtml(item.codigo_scian)}</span></td>
+      <td class="activity-name" title="${escapeHtml(item.descripcion)}">${escapeHtml(item.descripcion)}</td>
+      <td class="numeric"><strong>${fmt(item.unidades)}</strong></td>
+      <td class="numeric">${pct(item.porcentaje, 2)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderAlcaldiaScianChart(items) {
+  if (alcaldiaScianChart) alcaldiaScianChart.destroy();
+
+  alcaldiaScianChart = new Chart($('alcaldia-scian-chart'), {
+    type: 'bar',
+    data: {
+      labels: items.map((i) => i.codigo_scian),
+      datasets: [{
+        data: items.map((i) => Number(i.unidades) || 0),
+        backgroundColor: '#5f50df',
+        borderRadius: 4,
+        maxBarThickness: 22,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: '#6c778d', font: { size: 8 }, maxRotation: 0, autoSkip: false },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: '#eef1f6' },
+          border: { display: false },
+          ticks: { color: '#8690a3', font: { size: 8 }, callback: (value) => compactNumber(value) },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (ctx) => {
+              const item = items[ctx[0]?.dataIndex];
+              return item ? `${item.codigo_scian} · ${item.descripcion}` : '';
+            },
+            label: (ctx) => `${fmt(ctx.raw)} unidades · ${pct(items[ctx.dataIndex]?.porcentaje, 2)}`,
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderAlcaldiaComparisonChart(items, selectedId) {
+  if (alcaldiaComparisonChart) alcaldiaComparisonChart.destroy();
+
+  const top = items.slice(0, 5);
+  const selected = items.find((item) => Number(item.id) === Number(selectedId));
+  const shown = [...top];
+  if (selected && !top.some((item) => Number(item.id) === Number(selectedId))) shown.push(selected);
+
+  const selectedOutsideTop = selected && !top.some((item) => Number(item.id) === Number(selectedId));
+  $('alcaldia-comparison-note').textContent = selectedOutsideTop
+    ? 'Top 5 alcaldías y la demarcación seleccionada para contexto.'
+    : 'Top 5 alcaldías por número de unidades; la seleccionada está resaltada.';
+
+  alcaldiaComparisonChart = new Chart($('alcaldia-comparison-chart'), {
+    type: 'bar',
+    data: {
+      labels: shown.map((i) => i.nombre),
+      datasets: [{
+        data: shown.map((i) => Number(i.unidades) || 0),
+        backgroundColor: shown.map((i) => Number(i.id) === Number(selectedId) ? '#5f50df' : '#c9c4f5'),
+        borderRadius: 5,
+        barThickness: 12,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: '#eef1f6' },
+          border: { display: false },
+          ticks: { color: '#8690a3', font: { size: 8 }, callback: (value) => compactNumber(value) },
+        },
+        y: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: '#59667d', font: { size: 8 } },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${fmt(ctx.raw)} unidades` } },
+      },
+    },
+  });
+}
+
+async function loadAlcaldiaUnits(requestedAlcaldiaId = null) {
+  const alcaldiaId = Number(
+    requestedAlcaldiaId ||
+    $('alcaldia-select').value ||
+    0
+  );
+
+  if (!alcaldiaId || !alcaldiaMap) {
+    return;
+  }
+
+  const bounds = alcaldiaMap.getBounds();
+
+  const params = new URLSearchParams({
+    alcaldia_id: String(alcaldiaId),
+    west: bounds.getWest().toFixed(7),
+    south: bounds.getSouth().toFixed(7),
+    east: bounds.getEast().toFixed(7),
+    north: bounds.getNorth().toFixed(7),
+    zoom: String(alcaldiaMap.getZoom()),
+  });
+
+  $('alcaldia-map-status').textContent =
+    'Actualizando mapa…';
+
+  const geo = await api(
+    `/unidades/mapa?${params.toString()}`
+  );
+  if (
+    Number($('alcaldia-select').value || 0) !== alcaldiaId
+  ) {
+    return;
+  }
+
+  if (alcaldiaUnitLayer) {
+    alcaldiaUnitLayer.remove();
+  }
+
+  alcaldiaUnitLayer = L.geoJSON(geo, {
+
+    pointToLayer: (feature, latlng) => {
+      const p = feature.properties || {};
+
+      if (p.tipo === 'cluster') {
+  const count = Number(p.unidades) || 1;
+
+  const size = Math.min(
+  38,
+  24 + Math.log10(count + 1) * 4
+);
+
+  return L.marker(latlng, {
+    icon: L.divIcon({
+      className: 'map-cluster-marker',
+      html: `<span>${fmt(count)}</span>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    }),
+  });
+}
+
+      return L.circleMarker(latlng, {
+        radius: 2.7,
+        color: '#2f6fdb',
+        weight: 0.4,
+        fillColor: '#3b82f6',
+        fillOpacity: 0.76,
+      });
+    },
+
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties || {};
+
+      if (p.tipo === 'cluster') {
+        layer.bindTooltip(
+          `
+          <strong>${fmt(p.unidades)} unidades</strong>
+          <br>
+          Acerca el mapa para ver mayor detalle.
+          `,
+          {
+            sticky: true,
+          }
+        );
+
+        return;
+      }
+
+      layer.bindPopup(`
+        <strong class="popup-title">
+          ${escapeHtml(p.nombre || 'Unidad económica')}
+        </strong>
+
+        <div class="popup-meta">
+          ${escapeHtml(p.codigo_scian || '—')}
+          ·
+          ${escapeHtml(p.actividad || 'Sin actividad')}
+        </div>
+
+        <div class="popup-meta">
+          ${escapeHtml(p.alcaldia || '')}
+        </div>
+
+        <button
+          class="popup-button"
+          onclick="openUnit(${Number(p.id)})"
+        >
+          Ver detalle
+        </button>
+      `);
+    },
+
+  }).addTo(alcaldiaMap);
+  if (alcaldiaBoundaryLayer) {
+    alcaldiaBoundaryLayer.bringToFront();
+  }
+
+  const meta = geo.meta || {};
+
+  if (meta.mode === 'clusters') {
+
+    $('alcaldia-map-status').textContent =
+      `${fmt(meta.returned)} agrupaciones · ` +
+      `${fmt(meta.represented)} unidades representadas`;
+
+  } else if (meta.truncated) {
+
+    $('alcaldia-map-status').textContent =
+      `Mostrando ${fmt(meta.returned)} de ` +
+      `${fmt(meta.total_in_view)} unidades visibles · ` +
+      `acerca el zoom`;
+
+  } else {
+
+    $('alcaldia-map-status').textContent =
+      `${fmt(meta.returned)} unidades visibles`;
+  }
+}
+
+function renderAlcaldiaError(message) {
+  ['alc-info-name','alc-info-cvegeo','alc-info-total','alc-info-activities','alc-info-leader','alc-info-sector','alc-info-rank']
+    .forEach((id) => { $(id).textContent = '—'; });
+  $('alcaldia-top-table').innerHTML = `<tr><td colspan="4" class="empty-cell">No se pudo cargar la alcaldía: ${escapeHtml(message)}</td></tr>`;
+  $('alcaldia-map-status').textContent = 'No se pudieron cargar los datos.';
+  if (alcaldiaScianChart) alcaldiaScianChart.destroy();
+  if (alcaldiaComparisonChart) alcaldiaComparisonChart.destroy();
+}
+
 async function loadUnits() {
   const params = currentQuery();
   const bounds = map.getBounds();
@@ -478,12 +883,25 @@ function switchView(name) {
     detalle: 'Detalle de unidad económica',
     prediccion: 'Módulo de predicción',
   };
+  const subtitles = {
+    dashboard: 'Panorama general de las unidades económicas registradas en la Ciudad de México.',
+    alcaldia: 'Análisis detallado de las unidades económicas de una alcaldía seleccionada.',
+    detalle: 'Información individual y contexto territorial de una unidad económica.',
+    prediccion: 'Selecciona una ubicación para analizar su entorno económico.',
+  };
 
   $('page-title').textContent = labels[name];
   $('breadcrumb-current').textContent = labels[name];
+  document.querySelector('.page-subtitle').textContent = subtitles[name];
+
+  if (name === 'alcaldia') {
+    if ($('filter-alcaldia').value) $('alcaldia-select').value = $('filter-alcaldia').value;
+    loadAlcaldiaModule().catch(console.error);
+  }
 
   setTimeout(() => {
     if (name === 'dashboard') map.invalidateSize();
+    if (name === 'alcaldia') alcaldiaMap.invalidateSize();
     if (name === 'prediccion') predictionMap.invalidateSize();
   }, 40);
 }
@@ -508,6 +926,8 @@ document.querySelectorAll('.nav-item[data-view]').forEach((btn) => {
 $('apply-filters').addEventListener('click', loadDashboard);
 $('clear-filters').addEventListener('click', clearFilters);
 $('filter-sector').addEventListener('change', refreshActivitiesBySector);
+$('alcaldia-select').addEventListener('change', () => loadAlcaldiaModule().catch(console.error));
+$('back-dashboard').addEventListener('click', () => switchView('dashboard'));
 $('predict-btn').addEventListener('click', runPrediction);
 
 initMaps();

@@ -133,18 +133,19 @@ def unidades_mapa(
         LEFT JOIN actividad_economica a ON a.id = u.actividad_id
         WHERE {where}
     """), params).scalar() or 0)
-
-    if zoom < 14:
+    if zoom < 15:
         if zoom <= 9:
-            cell_size = 3000
+            cell_size = 3500       # 3.5 km
         elif zoom == 10:
-            cell_size = 1800
+            cell_size = 2200       # 2.2 km
         elif zoom == 11:
-            cell_size = 1000
+            cell_size = 1400       # 1.4 km
         elif zoom == 12:
-            cell_size = 500
+            cell_size = 900        # 900 m
+        elif zoom == 13:
+            cell_size = 550        # 550 m
         else:
-            cell_size = 250
+            cell_size = 300        # 300 m
 
         cluster_params = dict(params)
         cluster_params["cell_size"] = cell_size

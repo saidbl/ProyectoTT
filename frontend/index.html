@@ -6,7 +6,7 @@
   <title>SAE CDMX — Dashboard</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/assets/styles.css" />
+  <link rel="stylesheet" href="/assets/styles.css?v=4.2" />
 </head>
 <body>
   <div class="app-shell">
@@ -192,9 +192,98 @@
       </section>
 
       <section class="view" id="view-alcaldia">
-        <div class="card module-card">
-          <h2>Consulta por alcaldía</h2>
-          <p>Este módulo será el siguiente en desarrollarse una vez que se cierre el dashboard principal.</p>
+        <div class="card alcaldia-toolbar">
+          <label class="field alcaldia-selector">Seleccionar alcaldía
+            <select id="alcaldia-select"><option value="">Cargando alcaldías…</option></select>
+          </label>
+          <button id="back-dashboard" class="secondary-button" type="button">← Regresar al dashboard</button>
+        </div>
+
+        <div class="alcaldia-primary-grid">
+          <article class="card alcaldia-map-card">
+            <div class="section-title map-head">
+              <div>
+                <span class="section-kicker">Territorio</span>
+                <h2>Mapa de la alcaldía seleccionada</h2>
+                <p>Unidades económicas y límite oficial de la demarcación.</p>
+              </div>
+              <span class="tag">Leaflet + PostGIS</span>
+            </div>
+            <div id="alcaldia-map"></div>
+            <div class="map-legend">
+              <span><i class="legend-dot cluster"></i> Agrupación de unidades</span>
+              <span><i class="legend-dot unit"></i> Unidad económica</span>
+              <span><i class="legend-line"></i> Alcaldía seleccionada</span>
+              <strong id="alcaldia-map-status" class="map-status">Selecciona una alcaldía.</strong>
+            </div>
+          </article>
+
+          <div class="alcaldia-right-column">
+            <article class="card alcaldia-info-card">
+              <div class="section-title">
+                <div>
+                  <span class="section-kicker">Resumen territorial</span>
+                  <h2>Información general de la alcaldía</h2>
+                </div>
+              </div>
+              <dl class="alcaldia-info-list">
+                <dt>Alcaldía</dt><dd id="alc-info-name">—</dd>
+                <dt>Clave GEO (cvegeo)</dt><dd id="alc-info-cvegeo">—</dd>
+                <dt>Total de unidades económicas</dt><dd id="alc-info-total">—</dd>
+                <dt>Actividades SCIAN presentes</dt><dd id="alc-info-activities">—</dd>
+                <dt>Actividad predominante</dt><dd id="alc-info-leader">—</dd>
+                <dt>Sector predominante</dt><dd id="alc-info-sector">—</dd>
+                <dt>Posición por número de unidades</dt><dd id="alc-info-rank">—</dd>
+              </dl>
+            </article>
+
+            <article class="card chart-card alcaldia-scian-card">
+              <div class="section-title">
+                <div>
+                  <span class="section-kicker">SCIAN</span>
+                  <h2>Distribución de actividades económicas</h2>
+                  <p>Participación de las 20 categorías SCIAN utilizadas por el sistema.</p>
+                </div>
+              </div>
+              <div class="alcaldia-scian-chart-wrap"><canvas id="alcaldia-scian-chart"></canvas></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="alcaldia-secondary-grid">
+          <article class="card table-card">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">Ranking local</span>
+                <h2>Top 5 actividades económicas (SCIAN)</h2>
+                <p>Actividades con mayor número de establecimientos en la alcaldía.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="ranking-table">
+                <thead>
+                  <tr><th>Código</th><th>Actividad económica</th><th class="numeric">Unidades</th><th class="numeric">% del total</th></tr>
+                </thead>
+                <tbody id="alcaldia-top-table"><tr><td colspan="4" class="empty-cell">Selecciona una alcaldía.</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card chart-card alcaldia-comparison-card">
+            <div class="section-title">
+              <div>
+                <span class="section-kicker">Comparativa CDMX</span>
+                <h2>Concentración geográfica de unidades económicas</h2>
+                <p id="alcaldia-comparison-note">Top 5 alcaldías por número de unidades.</p>
+              </div>
+            </div>
+            <div class="alcaldia-comparison-chart-wrap"><canvas id="alcaldia-comparison-chart"></canvas></div>
+          </article>
+        </div>
+
+        <div class="dashboard-footnote card">
+          <span class="footnote-icon">i</span>
+          <p>Los datos mostrados provienen del DENUE almacenado en PostgreSQL/PostGIS. La clasificación económica usa las 20 categorías SCIAN definidas para el sistema y el mapa adapta su nivel de detalle al zoom.</p>
         </div>
       </section>
 
@@ -225,6 +314,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="/assets/app.js"></script>
+  <script src="/assets/app.js?v=4.2"></script>
 </body>
 </html>

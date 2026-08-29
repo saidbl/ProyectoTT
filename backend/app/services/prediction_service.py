@@ -47,8 +47,6 @@ def predict(db: Session, lat: float, lon: float):
             "confidence": None,
         }
 
-    # Punto de integración del modelo final. El artefacto debe incluir el pipeline de features.
-    # No se inventa una predicción sin conocer exactamente el modelo/feature engineering entrenado.
     _model = joblib.load(model_file)
     return {
         "status": "model_loaded_needs_feature_adapter",

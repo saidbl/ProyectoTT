@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import catalogs, dashboard, data_updates, health, predictions, units
+from app.api.routes import alcaldias, catalogs, dashboard, data_updates, health, predictions, units
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -19,5 +19,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for router in (health.router, catalogs.router, dashboard.router, units.router, predictions.router, data_updates.router):
+for router in (health.router, catalogs.router, dashboard.router, units.router, predictions.router, data_updates.router, alcaldias.router):
     app.include_router(router, prefix=settings.api_prefix)

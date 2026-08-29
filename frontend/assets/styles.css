@@ -367,3 +367,109 @@ dd { margin: 0; text-align: right; font-weight: 700; }
   .donut-container { height: 190px; }
   #map { height: 390px; }
 }
+
+/* Consulta por alcaldía */
+.alcaldia-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.alcaldia-selector { width: min(360px, 100%); margin: 0; }
+.secondary-button {
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #fff;
+  color: #44516a;
+  padding: 9px 12px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.secondary-button:hover { border-color: #aeb9d1; background: #f9faff; }
+
+.alcaldia-primary-grid {
+  display: grid;
+  grid-template-columns: minmax(480px, 1.2fr) minmax(390px, .95fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.alcaldia-map-card { min-width: 0; overflow: hidden; }
+#alcaldia-map { height: 515px; z-index: 1; }
+.alcaldia-right-column { display: grid; grid-template-rows: auto 1fr; gap: 12px; min-width: 0; }
+.alcaldia-info-card { min-width: 0; overflow: hidden; }
+.alcaldia-info-list {
+  grid-template-columns: minmax(150px, .8fr) minmax(0, 1.35fr);
+  gap: 0;
+  margin: 0;
+  padding: 0 14px 14px;
+  font-size: 9px;
+}
+.alcaldia-info-list dt,
+.alcaldia-info-list dd {
+  padding: 7px 0;
+  border-bottom: 1px solid #eef1f5;
+}
+.alcaldia-info-list dt { color: #7a8599; }
+.alcaldia-info-list dd {
+  margin: 0;
+  text-align: right;
+  color: #2a3750;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.alcaldia-info-list dt:nth-last-of-type(1),
+.alcaldia-info-list dd:nth-last-of-type(1) { border-bottom: 0; }
+.alcaldia-scian-card { min-height: 270px; }
+.alcaldia-scian-chart-wrap { height: 245px; padding: 0 12px 12px; }
+
+.alcaldia-secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+.alcaldia-comparison-chart-wrap { height: 250px; padding: 0 12px 12px; }
+
+@media (max-width: 1150px) {
+  .alcaldia-primary-grid { grid-template-columns: 1fr; }
+  #alcaldia-map { height: 430px; }
+  .alcaldia-right-column { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+}
+
+@media (max-width: 850px) {
+  .alcaldia-toolbar { align-items: stretch; flex-direction: column; }
+  .alcaldia-selector { width: 100%; }
+  .alcaldia-secondary-grid,
+  .alcaldia-right-column { grid-template-columns: 1fr; }
+  .alcaldia-info-list { grid-template-columns: 1fr; }
+  .alcaldia-info-list dd { text-align: left; padding-top: 0; }
+  #alcaldia-map { height: 390px; }
+}
+.map-cluster-marker {
+  background: transparent;
+  border: none;
+}
+
+.map-cluster-marker span {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(49, 85, 231, 0.74);
+  border: 1px solid rgba(37, 69, 207, 0.95);
+
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+
+  box-shadow: 0 1px 4px rgba(25, 45, 110, 0.18);
+
+  white-space: nowrap;
+}
