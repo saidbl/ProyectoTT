@@ -44,7 +44,7 @@
 
         <div class="topbar-right">
           <div class="update-block">
-            <span>Última consulta</span>
+            <span>Última actualización DENUE</span>
             <strong id="last-query">—</strong>
           </div>
           <div class="api-dot" id="api-dot"></div>
@@ -78,20 +78,11 @@
               <select id="filter-actividad"><option value="">Todas las actividades</option></select>
             </label>
 
-            <label class="field">Límite de puntos en mapa
-              <select id="filter-limit">
-                <option value="500">50,000 puntos</option>
-                <option value="1000" selected>100,000 puntos</option>
-                <option value="1200">250,000 puntos</option>
-                <option value="5000">500,000 puntos</option>
-              </select>
-            </label>
-
             <button id="apply-filters" class="primary wide" type="button">Aplicar filtros</button>
 
             <div class="filter-note">
               <span class="info-dot">i</span>
-              Los filtros actualizan mapa, resumen y gráficas de forma conjunta.
+              Los filtros actualizan mapa, resumen y gráficas de forma conjunta. El mapa adapta automáticamente el nivel de detalle al zoom.
             </div>
           </aside>
 
@@ -106,8 +97,10 @@
             </div>
             <div id="map"></div>
             <div class="map-legend">
+              <span><i class="legend-dot cluster"></i> Agrupación de unidades</span>
               <span><i class="legend-dot unit"></i> Unidad económica</span>
               <span><i class="legend-line"></i> Límite de alcaldía</span>
+              <strong id="map-status" class="map-status">Cargando mapa…</strong>
             </div>
           </article>
 

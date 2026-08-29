@@ -9,10 +9,12 @@ let selectedPredictionPoint = null;
 let sectorChart;
 let alcaldiaChart;
 let alcaldiasGeoJSON = null;
+let mapViewportEnabled = false;
+let mapReloadTimer = null;
 
 const $ = (id) => document.getElementById(id);
 const fmt = (value) => new Intl.NumberFormat('es-MX').format(Number(value) || 0);
-const pct = (value) => `${Number(value || 0).toFixed(1)}%`;
+const pct = (value, digits = 1) => `${Number(value || 0).toFixed(digits)}%`;
 
 async function api(path, options) {
   const res = await fetch(`${API}${path}`, options);
@@ -30,6 +32,12 @@ function initMaps() {
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(predictionMap);
 
   predictionMap.on('click', onPredictionClick);
+
+  map.on('moveend', () => {
+    if (!mapViewportEnabled) return;
+    clearTimeout(mapReloadTimer);
+    mapReloadTimer = setTimeout(() => loadUnits().catch(console.error), 220);
+  });
 }
 
 async function bootstrap() {
@@ -52,7 +60,8 @@ async function bootstrap() {
 
     renderActivityOptions(actividades);
     await loadAlcaldiasLayer();
-    await loadDashboard();
+    await Promise.all([loadDashboard(), loadDataUpdateStatus()]);
+    mapViewportEnabled = true;
   } catch (err) {
     console.error(err);
     renderDashboardError(err.message);
@@ -107,9 +116,8 @@ async function loadDashboard() {
     renderTopActivities(summary.top_actividades || []);
     renderSectorChart(summary.distribucion_sector || []);
     renderAlcaldiaChart(summary.distribucion_alcaldia || []);
-    updateQueryTime(summary.consulta_generada);
-
-    await Promise.all([loadUnits(), updateAlcaldiaLayerStyle()]);
+    await updateAlcaldiaLayerStyle();
+    await loadUnits();
   } catch (err) {
     console.error(err);
     renderDashboardError(err.message);
@@ -178,7 +186,7 @@ function renderSectorChart(items) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.label}: ${fmt(ctx.raw)} unidades`,
+            label: (ctx) => `${ctx.label}: ${fmt(ctx.raw)} unidades (${pct(items[ctx.dataIndex]?.porcentaje, 2)})`,
           },
         },
       },
@@ -196,7 +204,7 @@ function renderSectorChart(items) {
     <div class="legend-row">
       <span class="legend-swatch" style="background:${colors[index % colors.length]}"></span>
       <span>${escapeHtml(item.nombre)}</span>
-      <strong>${pct(item.porcentaje)}</strong>
+      <span class="legend-value"><b>${fmt(item.unidades)}</b><strong>${pct(item.porcentaje, 2)}</strong></span>
     </div>
   `).join('');
 }
@@ -309,20 +317,48 @@ async function updateAlcaldiaLayerStyle() {
 
 async function loadUnits() {
   const params = currentQuery();
-  params.set('limit', $('filter-limit').value);
-  const geo = await api(`/unidades?${params.toString()}`);
+  const bounds = map.getBounds();
+  params.set('west', bounds.getWest().toFixed(7));
+  params.set('south', bounds.getSouth().toFixed(7));
+  params.set('east', bounds.getEast().toFixed(7));
+  params.set('north', bounds.getNorth().toFixed(7));
+  params.set('zoom', String(map.getZoom()));
+
+  $('map-status').textContent = 'Actualizando mapa…';
+  const geo = await api(`/unidades/mapa?${params.toString()}`);
 
   if (unitLayer) unitLayer.remove();
   unitLayer = L.geoJSON(geo, {
-    pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
-      radius: 2.7,
-      color: '#2f6fdb',
-      weight: .4,
-      fillColor: '#3b82f6',
-      fillOpacity: .76,
-    }),
+    pointToLayer: (feature, latlng) => {
+      const p = feature.properties || {};
+      if (p.tipo === 'cluster') {
+        const count = Number(p.unidades) || 1;
+        const radius = Math.min(18, 5 + Math.log10(count + 1) * 3.2);
+        return L.circleMarker(latlng, {
+          radius,
+          color: '#2949cf',
+          weight: 1,
+          fillColor: '#3155e7',
+          fillOpacity: .5,
+        });
+      }
+      return L.circleMarker(latlng, {
+        radius: 2.7,
+        color: '#2f6fdb',
+        weight: .4,
+        fillColor: '#3b82f6',
+        fillOpacity: .76,
+      });
+    },
     onEachFeature: (feature, layer) => {
-      const p = feature.properties;
+      const p = feature.properties || {};
+      if (p.tipo === 'cluster') {
+        layer.bindTooltip(
+          `<strong>${fmt(p.unidades)} unidades</strong><br>Acerca el mapa para ver mayor detalle.`,
+          { sticky: true }
+        );
+        return;
+      }
       layer.bindPopup(`
         <strong class="popup-title">${escapeHtml(p.nombre || 'Unidad económica')}</strong>
         <div class="popup-meta">${escapeHtml(p.codigo_scian || '—')} · ${escapeHtml(p.actividad || 'Sin actividad')}</div>
@@ -331,6 +367,15 @@ async function loadUnits() {
       `);
     },
   }).addTo(map);
+
+  const meta = geo.meta || {};
+  if (meta.mode === 'clusters') {
+    $('map-status').textContent = `${fmt(meta.returned)} agrupaciones · ${fmt(meta.represented)} unidades representadas en el área visible`;
+  } else if (meta.truncated) {
+    $('map-status').textContent = `Mostrando ${fmt(meta.returned)} de ${fmt(meta.total_in_view)} unidades visibles · acerca el zoom para verlas todas`;
+  } else {
+    $('map-status').textContent = `${fmt(meta.returned)} unidades visibles`;
+  }
 }
 
 async function openUnit(id) {
@@ -338,7 +383,8 @@ async function openUnit(id) {
     const u = await api(`/unidades/${id}`);
     $('unit-detail').innerHTML = `
       <h3>${escapeHtml(u.nombre || 'Unidad económica')}</h3>
-      <p><strong>SCIAN:</strong> ${escapeHtml(u.codigo_scian || '—')}<br>
+      <p><strong>ID DENUE:</strong> ${escapeHtml(u.id_denue || '—')}<br>
+      <strong>SCIAN:</strong> ${escapeHtml(u.codigo_scian || '—')}<br>
       <strong>Actividad:</strong> ${escapeHtml(u.actividad || '—')}<br>
       <strong>Sector:</strong> ${escapeHtml(u.sector || '—')}<br>
       <strong>Alcaldía:</strong> ${escapeHtml(u.alcaldia || '—')}<br>
@@ -351,12 +397,22 @@ async function openUnit(id) {
 }
 window.openUnit = openUnit;
 
-function updateQueryTime(value) {
-  const date = value ? new Date(value) : new Date();
-  $('last-query').textContent = new Intl.DateTimeFormat('es-MX', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date);
+async function loadDataUpdateStatus() {
+  try {
+    const state = await api('/datos/estado-actualizacion');
+    if (!state.last_success_at) {
+      $('last-query').textContent = state.status === 'failed' ? 'Error de actualización' : 'Pendiente';
+      return;
+    }
+    const date = new Date(state.last_success_at);
+    $('last-query').textContent = new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(date);
+  } catch (err) {
+    console.error(err);
+    $('last-query').textContent = 'No disponible';
+  }
 }
 
 function setDashboardLoading(isLoading) {
@@ -379,7 +435,6 @@ function clearFilters() {
   $('filter-alcaldia').value = '';
   $('filter-sector').value = '';
   $('filter-actividad').value = '';
-  $('filter-limit').value = '1200';
   refreshActivitiesBySector().then(loadDashboard);
 }
 

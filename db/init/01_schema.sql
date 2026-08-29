@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS alcaldia (
 
 CREATE TABLE IF NOT EXISTS unidad_economica (
     id serial PRIMARY KEY,
+    id_denue bigint,
     nombre varchar(255),
     lat double precision NOT NULL CHECK (lat BETWEEN -90 AND 90),
     lon double precision NOT NULL CHECK (lon BETWEEN -180 AND 180),
@@ -44,6 +45,17 @@ CREATE TABLE IF NOT EXISTS prediccion (
     fecha timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
+
+
+CREATE TABLE IF NOT EXISTS denue_sync_state (
+    source varchar(40) PRIMARY KEY,
+    last_attempt_at timestamptz,
+    last_success_at timestamptz,
+    last_status varchar(20),
+    last_records integer,
+    last_error text
+);
+
 CREATE TABLE IF NOT EXISTS denue_raw (
     id bigint, clee text, nom_estab text, raz_social text, codigo_act text, nombre_act text,
     per_ocu text, tipo_vial text, nom_vial text, tipo_v_e_1 text, nom_v_e_1 text,
@@ -52,7 +64,17 @@ CREATE TABLE IF NOT EXISTS denue_raw (
     letra_int text, tipo_asent text, nomb_asent text, tipocencom text, nom_cencom text,
     num_local text, cod_postal text, cve_ent text, entidad text, cve_mun text, municipio text,
     cve_loc text, localidad text, ageb text, manzana text, telefono text, correoelec text,
-    www text, tipounieco text, latitud double precision, longitud double precision, fecha_alta text
+    www text, tipounieco text, latitud double precision, longitud double precision, fecha_alta text,
+    ubicacion_api text,
+    tipo_corredor_industrial text,
+    nom_corredor_industrial text,
+    sector_actividad_id text,
+    subsector_actividad_id text,
+    rama_actividad_id text,
+    subrama_actividad_id text,
+    edificio_piso text,
+    area_geo text,
+    api_payload jsonb
 );
 
 CREATE OR REPLACE FUNCTION mapear_sector(codigo text) RETURNS text

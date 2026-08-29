@@ -17,6 +17,19 @@ services:
       timeout: 5s
       retries: 20
 
+  denue-updater:
+    build:
+      context: ./etl
+    container_name: sae-cdmx-denue-updater
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ETL_DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-sae_cdmx}
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend

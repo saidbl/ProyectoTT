@@ -240,7 +240,9 @@ select:focus { border-color: #91a4ee; box-shadow: 0 0 0 3px rgba(49,85,231,.08);
   background: #fff;
 }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.map-status { margin-left: auto; color: #536079; font-size: 8px; font-weight: 600; text-align: right; }
 .legend-dot.unit { width: 7px; height: 7px; border-radius: 50%; background: #3b82f6; }
+.legend-dot.cluster { width: 11px; height: 11px; border-radius: 50%; background: rgba(49,85,231,.5); border: 1px solid #2949cf; }
 .legend-line { width: 15px; height: 0; border-top: 2px solid #6659dc; }
 
 .summary-list { display: grid; gap: 9px; }
@@ -294,6 +296,8 @@ select:focus { border-color: #91a4ee; box-shadow: 0 0 0 3px rgba(49,85,231,.08);
 .legend-row { display: grid; grid-template-columns: 8px minmax(0,1fr) auto; gap: 7px; align-items: center; font-size: 8px; color: #647086; }
 .legend-swatch { width: 8px; height: 8px; border-radius: 50%; }
 .legend-row strong { color: #27344f; font-size: 9px; }
+.legend-value { display: grid; grid-template-columns: auto auto; gap: 8px; align-items: baseline; justify-content: end; white-space: nowrap; }
+.legend-value b { color: #526079; font-size: 8px; font-weight: 600; }
 
 .bar-chart-container { height: 230px; padding: 0 12px 12px; }
 .dashboard-footnote {
@@ -358,6 +362,8 @@ dd { margin: 0; text-align: right; font-weight: 700; }
   .dashboard-secondary-grid { grid-template-columns: 1fr; }
   .filters-panel, .summary-panel, .map-card { grid-column: auto; grid-row: auto; }
   .donut-layout { grid-template-columns: 1fr; }
+  .map-legend { flex-wrap: wrap; }
+  .map-status { width: 100%; margin-left: 0; text-align: left; }
   .donut-container { height: 190px; }
   #map { height: 390px; }
 }

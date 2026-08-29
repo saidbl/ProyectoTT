@@ -2,7 +2,7 @@
 
 ## Enfoque
 
-Monolito modular desplegado como tres contenedores: **frontend**, **backend** y **PostgreSQL/PostGIS**. El ETL se mantiene como proceso separado y ejecutable bajo demanda/programación. Esto implementa la separación por capas descrita en TT1 sin introducir microservicios antes de que sean necesarios.
+Monolito modular desplegado con **frontend**, **backend**, **PostgreSQL/PostGIS** y un proceso desacoplado **denue-updater**. El actualizador consume la API oficial del DENUE y se ejecuta bajo demanda o automáticamente cuando han transcurrido 365 días desde la última sincronización exitosa. Esto implementa la separación por capas descrita en TT1 sin introducir microservicios antes de que sean necesarios.
 
 ```text
 Usuario / Navegador
@@ -21,7 +21,10 @@ FastAPI
 PostgreSQL + PostGIS
        ^
        |
-ETL DENUE (proceso desacoplado)
+Actualizador DENUE API (proceso desacoplado)
+  |-- descarga paginada BuscarAreaAct
+  |-- validación + tabla TEMPORAL
+  `-- reemplazo transaccional de unidad_economica
 ```
 
 ## Módulos
@@ -30,7 +33,7 @@ ETL DENUE (proceso desacoplado)
 - `backend/app/api/routes/`: Controladores HTTP.
 - `backend/app/services/`: Lógica de negocio y consultas agregadas.
 - `backend/app/db/`: conexión/persistencia.
-- `etl/`: extracción/carga inicial DENUE.
+- `etl/`: sincronización DENUE por API, programación anual y carga CSV manual de legado.
 - `db/init/`: esquema e índices reproducibles.
 - `scripts/`: respaldo/restauración.
 - `.github/workflows/`: integración continua.
@@ -42,3 +45,10 @@ ETL DENUE (proceso desacoplado)
 3. El frontend consume solamente REST/JSON/GeoJSON.
 4. Nginx sirve el frontend y actúa como reverse proxy, por lo que todo puede publicarse detrás de un solo host.
 5. La base se respalda con `pg_dump` y el código con Git/GitHub.
+
+
+## Actualización DENUE
+
+La sincronización no conserva versiones del dataset. Los registros obtenidos desde INEGI se cargan primero en una tabla temporal y sólo después de validar la descarga sustituyen el contenido operativo de `unidad_economica`. La sustitución usa una transacción para que una falla no deje la base a medias.
+
+Se agregó `unidad_economica.id_denue` como identificador de origen y `denue_sync_state` como estado operativo de una sola fila lógica. Esta última no contiene establecimientos ni snapshots; únicamente permite saber cuándo corresponde la siguiente ejecución automática.

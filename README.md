@@ -11,7 +11,7 @@ Browser
                   -> Servicios / lógica de negocio
                   -> PostgreSQL + PostGIS
 
-DENUE -> ETL Python -> denue_raw -> normalización -> PostgreSQL/PostGIS
+API DENUE -> actualizador anual -> tabla temporal -> unidad_economica -> PostgreSQL/PostGIS
 Modelo entrenado -> prediction_service -> API -> frontend
 ```
 
@@ -30,6 +30,8 @@ Consulta `ARCHITECTURE.md` para la separación completa.
 - Contrato listo para integrar el modelo ML sin inventar resultados.
 - API documentada automáticamente en `/docs`.
 - PostgreSQL/PostGIS en Docker.
+- Sincronización automática anual desde la API oficial del DENUE.
+- Estado de la última actualización disponible en la API y en el dashboard.
 - Backup/restore de BD.
 - Workflow básico de GitHub Actions.
 
@@ -42,8 +44,14 @@ Consulta `ARCHITECTURE.md` para la separación completa.
 
 ### Ejecutar
 
+1. Copia la configuración de ejemplo.
+2. Obtén un token gratuito de la API DENUE de INEGI.
+3. Colócalo en `DENUE_TOKEN` dentro de `.env`.
+4. Levanta el sistema.
+
 ```bash
 cp .env.example .env
+# Edita .env y coloca DENUE_TOKEN=TU_TOKEN
 docker compose up -d --build
 ```
 
@@ -51,12 +59,15 @@ En Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
+# Edita .env y coloca DENUE_TOKEN=TU_TOKEN
 docker compose up -d --build
 ```
 
+El contenedor `denue-updater` revisa una vez al día si la última actualización exitosa tiene 365 días o más. Si nunca se ha ejecutado, realiza la primera sincronización automáticamente al detectar un token válido.
+
 Abre:
 
-- Aplicación: `http://localhost:8080`
+- Aplicación: `http://localhost:8081`
 - Swagger API: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/api/health`
 - PostgreSQL desde host: `localhost:5434`
@@ -85,6 +96,7 @@ Si ya tienes un dump completo con alcaldías y unidades económicas, la forma re
 - `GET /api/unidades`
 - `GET /api/unidades/{id}`
 - `POST /api/predicciones`
+- `GET /api/datos/estado-actualizacion`
 
 ## 6. Módulo predictivo
 
@@ -100,18 +112,47 @@ El documento define dos modelos, comparación de resultados y selección del mej
 
 La siguiente fase debe incorporar exactamente el mismo generador de variables de entrenamiento: celda, multiescala, proporciones, entropía, Simpson, margen de dominancia y demás features validadas.
 
-## 7. ETL
+## 7. Actualización automática con la API DENUE
 
-La primera etapa está en `etl/load_denue_csv.py` y carga el CSV original en `denue_raw` para conservar trazabilidad. La normalización completa se debe implementar como segundo paso una vez fijemos el layout exacto del CSV y la carga oficial de polígonos de alcaldías.
+La actualización operativa ya no depende de descargar y versionar un CSV. El proceso principal está en `etl/update_denue_api.py` y usa el método `BuscarAreaAct` de la API DENUE para consultar todos los establecimientos de la entidad `09` (Ciudad de México) por páginas.
 
-Ejemplo local:
+Flujo implementado:
+
+1. Consulta la API DENUE por páginas.
+2. Valida `Id`, coordenadas y sector/clase SCIAN.
+3. Mapea la actividad al mismo catálogo de 20 sectores que ya usa el dashboard/modelo.
+4. Carga los registros válidos en una **tabla temporal** de PostgreSQL. Esta tabla desaparece al terminar el proceso y no crea versiones del dataset.
+5. Si la descarga supera el umbral de seguridad, reemplaza `unidad_economica` dentro de una sola transacción. Si la API falla o devuelve pocos registros, la tabla actual se conserva intacta.
+6. Regenera `geom`, `geom_utm`, `alcaldia_id` y `dist_to_border` con PostGIS.
+7. Guarda únicamente el estado operativo de la última ejecución en `denue_sync_state` (fecha, estado y cantidad de registros). No se guardan snapshots históricos.
+
+La actualización automática está en `etl/yearly_denue_updater.py`. Por defecto revisa cada 24 horas y ejecuta una nueva sincronización sólo cuando han pasado 365 días desde el último éxito.
+
+### Ejecutar una actualización ahora
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r etl/requirements.txt
-python etl/load_denue_csv.py data/denue.csv --truncate
+docker compose run --rm denue-updater python update_denue_api.py
 ```
+
+Con Make:
+
+```bash
+make denue-sync
+```
+
+### Probar la descarga sin tocar la tabla actual
+
+```bash
+docker compose run --rm denue-updater python update_denue_api.py --dry-run
+```
+
+### Ver el servicio automático
+
+```bash
+docker compose logs -f denue-updater
+```
+
+El script `etl/load_denue_csv.py` se conserva únicamente como herramienta de carga manual/legado; ya no forma parte del flujo automático principal.
 
 ## 8. Respaldo de BD
 
@@ -150,11 +191,11 @@ Nunca subas `.env`, passwords, dumps pesados ni modelos de producción sin una e
 
 ## 10. Siguiente incremento recomendado
 
-1. Restaurar datos completos reales.
-2. Validar índices y conteos contra PostgreSQL actual.
+1. Configurar `DENUE_TOKEN` y ejecutar la primera sincronización API.
+2. Verificar el estado en `/api/datos/estado-actualizacion`.
 3. Completar vista de consulta por alcaldía y detalle.
 4. Implementar clustering/renderizado eficiente para cientos de miles de puntos.
-5. Construir pipeline analítico reproducible.
+5. Mantener el pipeline analítico del modelo separado de la actualización operativa.
 6. Entrenar/evaluar los dos modelos.
 7. Integrar el mejor modelo y guardar `prediccion`.
 8. Agregar pruebas de integración y e2e.
