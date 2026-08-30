@@ -19,6 +19,12 @@ let alcaldiasGeoJSON = null;
 let mapViewportEnabled = false;
 let mapReloadTimer = null;
 let alcaldiaLoadVersion = 0;
+let detailMap;
+let detailMarker;
+let detailBoundaryLayer;
+
+let currentUnitId = null;
+let lastViewBeforeDetail = 'dashboard';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (value) => new Intl.NumberFormat('es-MX').format(Number(value) || 0);
@@ -35,11 +41,28 @@ function initMaps() {
   predictionMap = L.map('prediction-map').setView([19.4326, -99.1332], 10);
   alcaldiaMap = L.map('alcaldia-map', { zoomControl: true, preferCanvas: true }).setView([19.4326, -99.1332], 10);
 
+  detailMap = L.map(
+  'detail-map',
+  {
+    zoomControl: true,
+    preferCanvas: true
+  }
+).setView(
+  [19.4326, -99.1332],
+  12
+);
   const tiles = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const attribution = '&copy; OpenStreetMap contributors';
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(map);
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(predictionMap);
   L.tileLayer(tiles, { attribution, maxZoom: 19 }).addTo(alcaldiaMap);
+  L.tileLayer(
+  tiles,
+  {
+    attribution,
+    maxZoom: 19
+  }
+).addTo(detailMap);
 
   predictionMap.on('click', onPredictionClick);
 
@@ -783,23 +806,751 @@ async function loadUnits() {
   }
 }
 
-async function openUnit(id) {
-  try {
-    const u = await api(`/unidades/${id}`);
-    $('unit-detail').innerHTML = `
-      <h3>${escapeHtml(u.nombre || 'Unidad económica')}</h3>
-      <p><strong>ID DENUE:</strong> ${escapeHtml(u.id_denue || '—')}<br>
-      <strong>SCIAN:</strong> ${escapeHtml(u.codigo_scian || '—')}<br>
-      <strong>Actividad:</strong> ${escapeHtml(u.actividad || '—')}<br>
-      <strong>Sector:</strong> ${escapeHtml(u.sector || '—')}<br>
-      <strong>Alcaldía:</strong> ${escapeHtml(u.alcaldia || '—')}<br>
-      <strong>Coordenadas:</strong> ${u.lat}, ${u.lon}</p>
+function detailText(id, value) {
+
+  const el = $(id);
+
+  if (!el) {
+    return;
+  }
+
+  const text = String(
+    value ?? ''
+  ).trim();
+
+  el.textContent = text || '—';
+}
+
+
+function detailDistance(value) {
+  const n = Number(value);
+
+  if (!Number.isFinite(n)) {
+    return '—';
+  }
+
+  if (n >= 1000) {
+    return `${(n / 1000).toLocaleString(
+      'es-MX',
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+    )} km`;
+  }
+
+  return `${n.toLocaleString(
+    'es-MX',
+    {
+      maximumFractionDigits: 2
+    }
+  )} m`;
+}
+
+
+function detailAddress(u) {
+
+  const tipoVial = String(
+    u.tipo_vial ?? ''
+  ).trim();
+
+  const nombreVial = String(
+    u.nom_vial ?? ''
+  ).trim();
+
+
+  let vialidad = nombreVial;
+  if (tipoVial && nombreVial) {
+
+    const tipoUpper =
+      tipoVial.toUpperCase();
+
+    const nombreUpper =
+      nombreVial.toUpperCase();
+
+    if (
+      !nombreUpper.startsWith(
+        `${tipoUpper} `
+      ) &&
+      nombreUpper !== tipoUpper
+    ) {
+
+      vialidad =
+        `${tipoVial} ${nombreVial}`;
+    }
+
+  } else if (tipoVial) {
+
+    vialidad = tipoVial;
+  }
+
+
+  const exterior = [
+    u.numero_ext,
+    u.letra_ext
+  ]
+    .map((v) =>
+      String(v ?? '').trim()
+    )
+    .filter(Boolean)
+    .join(' ');
+
+
+  const interiorParts = [
+    u.numero_int,
+    u.letra_int
+  ]
+    .map((v) =>
+      String(v ?? '').trim()
+    )
+    .filter(Boolean);
+
+
+  const interior =
+    interiorParts.length
+      ? `Int. ${interiorParts.join(' ')}`
+      : '';
+
+
+  const settlement = [
+    u.tipo_asent,
+    u.nomb_asent
+  ]
+    .map((v) =>
+      String(v ?? '').trim()
+    )
+    .filter(Boolean)
+    .join(' ');
+
+
+  return [
+    vialidad,
+    exterior,
+    interior,
+    settlement
+  ]
+    .filter(Boolean)
+    .join(', ')
+    || '—';
+}
+
+
+function detailLink(
+  id,
+  value,
+  type
+) {
+
+  const el = $(id);
+
+  if (!el) {
+    return;
+  }
+
+  el.replaceChildren();
+
+  const raw = String(
+    value ?? ''
+  ).trim();
+
+
+  if (!raw) {
+
+    el.textContent = '—';
+
+    return;
+  }
+
+
+  let href = null;
+
+
+  if (type === 'email') {
+
+    href = `mailto:${raw}`;
+
+  } else if (type === 'phone') {
+
+    href =
+      `tel:${raw.replace(
+        /[^+\d]/g,
+        ''
+      )}`;
+
+  } else if (type === 'web') {
+
+    try {
+
+      const candidate =
+        /^https?:\/\//i.test(raw)
+          ? raw
+          : `https://${raw}`;
+
+      const url =
+        new URL(candidate);
+
+      if (
+        [
+          'http:',
+          'https:'
+        ].includes(
+          url.protocol
+        )
+      ) {
+
+        href = url.href;
+      }
+
+    } catch (_) {
+    }
+  }
+
+
+  if (!href) {
+
+    el.textContent = raw;
+
+    return;
+  }
+
+
+  const a =
+    document.createElement('a');
+
+  a.textContent = raw;
+
+  a.href = href;
+
+  a.className =
+    'detail-link';
+
+
+  if (type === 'web') {
+
+    a.target = '_blank';
+
+    a.rel =
+      'noopener noreferrer';
+  }
+
+
+  el.appendChild(a);
+}
+
+
+function renderDetailMap(u) {
+
+  if (!detailMap) {
+    return;
+  }
+
+
+  if (detailMarker) {
+    detailMarker.remove();
+  }
+
+
+  if (detailBoundaryLayer) {
+    detailBoundaryLayer.remove();
+  }
+
+
+  const lat =
+    Number(u.lat);
+
+  const lon =
+    Number(u.lon);
+
+
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lon)
+  ) {
+
+    return;
+  }
+  const feature =
+    alcaldiasGeoJSON
+      ?.features
+      ?.find(
+        (f) =>
+          Number(
+            f.properties?.id
+          ) ===
+          Number(
+            u.alcaldia_id
+          )
+      );
+
+
+  if (feature) {
+
+    detailBoundaryLayer =
+      L.geoJSON(
+        feature,
+        {
+          style: {
+
+            color: '#6558d9',
+
+            weight: 1.6,
+
+            fillColor:
+              '#756be5',
+
+            fillOpacity:
+              0.04
+          }
+        }
+      )
+      .addTo(detailMap);
+  }
+
+
+  detailMarker =
+    L.marker([
+      lat,
+      lon
+    ])
+    .addTo(detailMap)
+    .bindPopup(`
+      <strong class="popup-title">
+        ${escapeHtml(
+          u.nombre ||
+          'Unidad económica'
+        )}
+      </strong>
+
+      <div class="popup-meta">
+        ${escapeHtml(
+          u.codigo_scian_denue ||
+          u.codigo_scian_sistema ||
+          '—'
+        )}
+        ·
+        ${escapeHtml(
+          u.actividad_denue ||
+          u.actividad_sistema ||
+          '—'
+        )}
+      </div>
+    `);
+
+
+  detailMap.setView(
+    [
+      lat,
+      lon
+    ],
+    17
+  );
+
+
+  setTimeout(
+    () =>
+      detailMap.invalidateSize(),
+    60
+  );
+}
+
+
+function renderNearbyUnits(items) {
+
+  const body =
+    $('detail-nearby-body');
+
+
+  if (!body) {
+    return;
+  }
+
+
+  if (!items?.length) {
+
+    body.innerHTML = `
+      <tr>
+
+        <td
+          colspan="5"
+          class="empty-cell"
+        >
+          No hay otras unidades
+          en la misma celda.
+        </td>
+
+      </tr>
     `;
-    switchView('detalle');
+
+    return;
+  }
+
+
+  body.innerHTML =
+    items
+      .map(
+        (item) => `
+          <tr>
+
+            <td>
+              ${escapeHtml(
+                item.id_denue ||
+                '—'
+              )}
+            </td>
+
+            <td
+              class="detail-nearby-name"
+              title="${escapeHtml(
+                item.nombre ||
+                ''
+              )}"
+            >
+              ${escapeHtml(
+                item.nombre ||
+                'Sin nombre'
+              )}
+            </td>
+
+            <td>
+
+              <span
+                class="activity-code"
+              >
+                ${escapeHtml(
+                  item.codigo_scian ||
+                  '—'
+                )}
+              </span>
+
+            </td>
+
+            <td class="numeric">
+
+              ${detailDistance(
+                item.distancia_m
+              )}
+
+            </td>
+
+            <td class="numeric">
+
+              <button
+                class="detail-row-button"
+                type="button"
+                onclick="openUnit(
+                  ${Number(item.id)}
+                )"
+              >
+                Ver
+              </button>
+
+            </td>
+
+          </tr>
+        `
+      )
+      .join('');
+}
+
+
+function renderUnitDetail(u) {
+
+  currentUnitId =
+    Number(u.id);
+
+
+  $('detail-empty')
+    .classList
+    .add('hidden');
+
+
+  $('detail-content')
+    .classList
+    .remove('hidden');
+  detailText(
+    'detail-name',
+    u.nombre ||
+    'Unidad económica'
+  );
+
+
+  detailText(
+    'detail-activity-subtitle',
+
+    `${
+      u.codigo_scian_denue ||
+      u.codigo_scian_sistema ||
+      '—'
+    } · ${
+      u.actividad_denue ||
+      u.actividad_sistema ||
+      'Actividad no disponible'
+    }`
+  );
+
+  detailText(
+    'detail-id-denue',
+    u.id_denue
+  );
+
+  detailText(
+    'detail-clee',
+    u.clee
+  );
+
+  detailText(
+    'detail-razon-social',
+    u.raz_social
+  );
+
+  detailText(
+    'detail-per-ocu',
+    u.per_ocu
+  );
+
+  detailText(
+    'detail-tipo-unidad',
+    u.tipounieco
+  );
+
+  detailText(
+    'detail-fecha-alta',
+    u.fecha_alta
+  );
+
+  detailText(
+    'detail-alcaldia',
+    u.alcaldia
+  );
+
+
+  const lat =
+    Number(u.lat);
+
+  const lon =
+    Number(u.lon);
+
+
+  detailText(
+    'detail-coords',
+
+    Number.isFinite(lat) &&
+    Number.isFinite(lon)
+
+      ? `${lat.toFixed(6)}, ${lon.toFixed(6)}`
+
+      : '—'
+  );
+
+
+  detailText(
+    'detail-border',
+    detailDistance(
+      u.dist_to_border
+    )
+  );
+  detailText(
+    'detail-scian-full',
+    u.codigo_scian_denue
+  );
+
+  detailText(
+    'detail-scian-system',
+    u.codigo_scian_sistema
+  );
+
+  detailText(
+    'detail-activity-denue',
+    u.actividad_denue
+  );
+
+  detailText(
+    'detail-activity-system',
+    u.actividad_sistema
+  );
+
+  detailText(
+    'detail-sector',
+    u.sector
+  );
+  detailText(
+    'detail-cvegeo',
+    u.alcaldia_cvegeo
+  );
+
+  detailText(
+    'detail-address',
+    detailAddress(u)
+  );
+
+  detailText(
+    'detail-cp',
+    u.cod_postal
+  );
+
+  detailText(
+    'detail-ageb-manzana',
+
+    `${
+      u.ageb ||
+      '—'
+    } / ${
+      u.manzana ||
+      '—'
+    }`
+  );
+
+  detailText(
+    'detail-cell-id',
+    u.cell_id
+  );
+
+  detailText(
+    'detail-cell-xy',
+
+    `${
+      u.cell_x ??
+      '—'
+    } / ${
+      u.cell_y ??
+      '—'
+    }`
+  );
+
+  detailText(
+  'detail-same-cell',
+  `${fmt(u.unidades_misma_celda)} (incluye esta unidad)`
+);
+  const nearbyTotal = Math.max(
+  0,
+  Number(u.unidades_misma_celda || 0) - 1
+);
+
+const nearbyShown =
+  Array.isArray(u.unidades_cercanas)
+    ? u.unidades_cercanas.length
+    : 0;
+
+
+detailText(
+  'detail-nearby-summary',
+
+  nearbyTotal > 0
+    ? `Mostrando las ${fmt(nearbyShown)} unidades más cercanas de ${fmt(nearbyTotal)} establecimientos adicionales dentro de la celda espacial de 300 m.`
+    : 'No existen otros establecimientos registrados dentro de esta celda espacial.'
+);
+  detailLink(
+    'detail-phone',
+    u.telefono,
+    'phone'
+  );
+
+  detailLink(
+    'detail-email',
+    u.correoelec,
+    'email'
+  );
+
+  detailLink(
+    'detail-web',
+    u.www,
+    'web'
+  );
+
+  renderNearbyUnits(
+    u.unidades_cercanas ||
+    []
+  );
+  renderDetailMap(u);
+}
+
+
+async function openUnit(id) {
+
+  const activeView =
+    document
+      .querySelector(
+        '.view.active'
+      )
+      ?.id
+      ?.replace(
+        'view-',
+        ''
+      );
+
+
+  if (
+    activeView &&
+    activeView !== 'detalle'
+  ) {
+
+    lastViewBeforeDetail =
+      activeView;
+  }
+
+
+  switchView(
+    'detalle'
+  );
+
+
+  $('detail-empty')
+    .classList
+    .add('hidden');
+
+
+  $('detail-content')
+    .classList
+    .remove('hidden');
+
+
+  detailText(
+    'detail-name',
+    'Cargando unidad económica…'
+  );
+
+
+  detailText(
+    'detail-activity-subtitle',
+    'Consultando información DENUE y contexto espacial.'
+  );
+
+
+  try {
+
+    const u =
+      await api(
+        `/unidades/${Number(id)}`
+      );
+
+
+    renderUnitDetail(u);
+
   } catch (err) {
+
     console.error(err);
+
+    currentUnitId = null;
+
+
+    $('detail-content')
+      .classList
+      .add('hidden');
+
+
+    $('detail-empty')
+      .classList
+      .remove('hidden');
+
+
+    $('detail-empty')
+      .querySelector('p')
+      .textContent =
+        `No se pudo cargar la unidad económica: ${err.message}`;
   }
 }
+
+
 window.openUnit = openUnit;
 
 async function loadDataUpdateStatus() {
@@ -900,10 +1651,28 @@ function switchView(name) {
   }
 
   setTimeout(() => {
-    if (name === 'dashboard') map.invalidateSize();
-    if (name === 'alcaldia') alcaldiaMap.invalidateSize();
-    if (name === 'prediccion') predictionMap.invalidateSize();
-  }, 40);
+
+  if (name === 'dashboard') {
+    map.invalidateSize();
+  }
+
+  if (name === 'alcaldia') {
+    alcaldiaMap.invalidateSize();
+  }
+
+  if (name === 'prediccion') {
+    predictionMap.invalidateSize();
+  }
+
+  if (
+    name === 'detalle' &&
+    detailMap
+  ) {
+
+    detailMap.invalidateSize();
+  }
+
+}, 40);
 }
 
 function compactNumber(value) {
@@ -928,6 +1697,29 @@ $('clear-filters').addEventListener('click', clearFilters);
 $('filter-sector').addEventListener('change', refreshActivitiesBySector);
 $('alcaldia-select').addEventListener('change', () => loadAlcaldiaModule().catch(console.error));
 $('back-dashboard').addEventListener('click', () => switchView('dashboard'));
+$('detail-back').addEventListener(
+  'click',
+  () => {
+
+    switchView(
+      lastViewBeforeDetail ||
+      'dashboard'
+    );
+
+  }
+);
+
+
+$('detail-empty-back').addEventListener(
+  'click',
+  () => {
+
+    switchView(
+      'dashboard'
+    );
+
+  }
+);
 $('predict-btn').addEventListener('click', runPrediction);
 
 initMaps();

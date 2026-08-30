@@ -253,17 +253,194 @@ def unidades_mapa(
 @router.get("/unidades/{unidad_id}")
 def unidad_detalle(unidad_id: int, db: Session = Depends(get_db)):
     row = db.execute(text("""
+        WITH target AS (
+            SELECT
+                u.id,
+                u.id_denue,
+                u.nombre,
+                u.lat,
+                u.lon,
+                u.dist_to_border,
+                u.geom_utm,
+
+                a.codigo_scian AS codigo_scian_sistema,
+                a.descripcion AS actividad_sistema,
+
+                s.id AS sector_id,
+                s.nombre AS sector,
+
+                al.id AS alcaldia_id,
+                al.nombre AS alcaldia,
+                al.cvegeo AS alcaldia_cvegeo,
+
+                d.clee,
+                d.raz_social,
+                d.codigo_act AS codigo_scian_denue,
+                d.nombre_act AS actividad_denue,
+                d.per_ocu,
+
+                d.tipo_vial,
+                d.nom_vial,
+                d.numero_ext,
+                d.letra_ext,
+                d.numero_int,
+                d.letra_int,
+
+                d.tipo_asent,
+                d.nomb_asent,
+                d.cod_postal,
+
+                d.localidad,
+                d.ageb,
+                d.manzana,
+
+                d.telefono,
+                d.correoelec,
+                d.www,
+
+                d.tipounieco,
+                d.fecha_alta,
+
+                CASE
+                    WHEN u.geom_utm IS NOT NULL
+                    THEN FLOOR(ST_X(u.geom_utm) / 300.0)::bigint
+                END AS cell_x,
+
+                CASE
+                    WHEN u.geom_utm IS NOT NULL
+                    THEN FLOOR(ST_Y(u.geom_utm) / 300.0)::bigint
+                END AS cell_y
+
+            FROM unidad_economica u
+
+            LEFT JOIN actividad_economica a
+                ON a.id = u.actividad_id
+
+            LEFT JOIN sector s
+                ON s.id = a.sector_id
+
+            LEFT JOIN alcaldia al
+                ON al.id = u.alcaldia_id
+
+            LEFT JOIN denue_raw d
+                ON d.id = u.id_denue
+
+            WHERE u.id = :id
+        )
+
         SELECT
-            u.id, u.id_denue, u.nombre, u.lat, u.lon, u.dist_to_border,
-            a.codigo_scian, a.descripcion AS actividad,
-            s.id AS sector_id, s.nombre AS sector,
-            al.id AS alcaldia_id, al.nombre AS alcaldia
-        FROM unidad_economica u
-        LEFT JOIN actividad_economica a ON a.id = u.actividad_id
-        LEFT JOIN sector s ON s.id = a.sector_id
-        LEFT JOIN alcaldia al ON al.id = u.alcaldia_id
-        WHERE u.id = :id
-    """), {"id": unidad_id}).mappings().first()
+            t.*,
+
+            CASE
+                WHEN t.cell_x IS NOT NULL
+                 AND t.cell_y IS NOT NULL
+                THEN CONCAT(t.cell_x, ':', t.cell_y)
+            END AS cell_id,
+
+            CASE
+                WHEN t.cell_x IS NOT NULL
+                 AND t.cell_y IS NOT NULL
+                THEN (
+                    SELECT COUNT(*)::integer
+
+                    FROM unidad_economica ux
+
+                    WHERE ux.geom_utm IS NOT NULL
+
+                      AND FLOOR(
+                            ST_X(ux.geom_utm) / 300.0
+                          )::bigint = t.cell_x
+
+                      AND FLOOR(
+                            ST_Y(ux.geom_utm) / 300.0
+                          )::bigint = t.cell_y
+                )
+
+                ELSE 0
+            END AS unidades_misma_celda
+
+        FROM target t
+
+    """), {
+        "id": unidad_id
+    }).mappings().first()
+
     if not row:
-        raise HTTPException(status_code=404, detail="Unidad económica no encontrada")
-    return dict(row)
+        raise HTTPException(
+            status_code=404,
+            detail="Unidad económica no encontrada"
+        )
+
+    result = dict(row)
+    result.pop("geom_utm", None)
+
+    vecinos = []
+
+    if row["cell_x"] is not None and row["cell_y"] is not None:
+
+        vecinos = db.execute(text("""
+            WITH target AS (
+                SELECT
+                    id,
+                    geom_utm
+                FROM unidad_economica
+                WHERE id = :id
+            )
+
+            SELECT
+                ux.id,
+                ux.id_denue,
+                ux.nombre,
+
+                ax.codigo_scian,
+                ax.descripcion AS actividad,
+
+                ROUND(
+                    ST_Distance(
+                        ux.geom_utm,
+                        t.geom_utm
+                    )::numeric,
+                    2
+                ) AS distancia_m
+
+            FROM unidad_economica ux
+
+            CROSS JOIN target t
+
+            LEFT JOIN actividad_economica ax
+                ON ax.id = ux.actividad_id
+
+            WHERE ux.id <> :id
+              AND ux.geom_utm IS NOT NULL
+
+              AND FLOOR(
+                    ST_X(ux.geom_utm) / 300.0
+                  )::bigint = :cell_x
+
+              AND FLOOR(
+                    ST_Y(ux.geom_utm) / 300.0
+                  )::bigint = :cell_y
+
+            ORDER BY
+                ST_Distance(
+                    ux.geom_utm,
+                    t.geom_utm
+                ),
+                ux.id
+
+            LIMIT 8
+
+        """), {
+            "id": unidad_id,
+            "cell_x": row["cell_x"],
+            "cell_y": row["cell_y"],
+        }).mappings().all()
+
+    result["unidades_cercanas"] = [
+        dict(item)
+        for item in vecinos
+    ]
+
+    result["cell_size_m"] = 300
+
+    return result

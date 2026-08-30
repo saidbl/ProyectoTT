@@ -6,7 +6,7 @@
   <title>SAE CDMX — Dashboard</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/assets/styles.css?v=4.2" />
+  <link rel="stylesheet" href="/assets/styles.css?v=5.1" />
 </head>
 <body>
   <div class="app-shell">
@@ -288,12 +288,362 @@
       </section>
 
       <section class="view" id="view-detalle">
-        <div class="card module-card">
-          <h2>Detalle de unidad económica</h2>
-          <p>Haz clic en cualquier punto del mapa y selecciona “Ver detalle”.</p>
-          <div id="unit-detail" class="detail-panel">Aún no has seleccionado una unidad.</div>
+
+  <!-- Estado cuando todavía no hay ninguna unidad seleccionada -->
+  <div id="detail-empty" class="card detail-empty-state">
+
+    <div class="detail-empty-icon">▤</div>
+
+    <h2>Detalle de unidad económica</h2>
+
+    <p>
+      Selecciona un establecimiento desde el mapa del dashboard
+      o desde la consulta por alcaldía y pulsa
+      <strong>“Ver detalle”</strong>.
+    </p>
+
+    <button
+      id="detail-empty-back"
+      class="secondary-button"
+      type="button"
+    >
+      ← Regresar al dashboard
+    </button>
+
+  </div>
+
+
+  <!-- Contenido real -->
+  <div id="detail-content" class="detail-content hidden">
+
+    <div class="detail-toolbar">
+
+      <button
+        id="detail-back"
+        class="text-button detail-back-button"
+        type="button"
+      >
+        ← Regresar
+      </button>
+
+      <span class="tag">
+        Fuente: DENUE · INEGI
+      </span>
+
+    </div>
+
+
+    <!-- INFORMACIÓN + MAPA -->
+    <div class="detail-primary-grid">
+
+      <article class="card detail-general-card">
+
+        <div class="section-title">
+
+          <div>
+
+            <span class="section-kicker">
+              Información general
+            </span>
+
+            <h2 id="detail-name">
+              Unidad económica
+            </h2>
+
+            <p id="detail-activity-subtitle">
+              —
+            </p>
+
+          </div>
+
         </div>
-      </section>
+
+
+        <dl class="detail-info-list">
+
+          <dt>ID DENUE</dt>
+          <dd id="detail-id-denue">—</dd>
+
+          <dt>CLEE</dt>
+          <dd id="detail-clee">—</dd>
+
+          <dt>Razón social</dt>
+          <dd id="detail-razon-social">—</dd>
+
+          <dt>Personal ocupado</dt>
+          <dd id="detail-per-ocu">—</dd>
+
+          <dt>Tipo de unidad</dt>
+          <dd id="detail-tipo-unidad">—</dd>
+
+          <dt>Fecha de alta DENUE</dt>
+          <dd id="detail-fecha-alta">—</dd>
+
+          <dt>Alcaldía</dt>
+          <dd id="detail-alcaldia">—</dd>
+
+          <dt>Coordenadas</dt>
+          <dd id="detail-coords">—</dd>
+
+          <dt>Distancia al borde</dt>
+          <dd id="detail-border">—</dd>
+
+        </dl>
+
+      </article>
+
+
+      <article class="card detail-map-card">
+
+        <div class="section-title map-head">
+
+          <div>
+
+            <span class="section-kicker">
+              Ubicación
+            </span>
+
+            <h2>
+              Ubicación en el mapa
+            </h2>
+
+            <p>
+              Posición geográfica registrada para el establecimiento.
+            </p>
+
+          </div>
+
+          <span class="tag">
+            Leaflet + PostGIS
+          </span>
+
+        </div>
+
+        <div id="detail-map"></div>
+
+        <div class="detail-map-legend">
+
+          <span>
+            <i class="legend-dot unit"></i>
+            Unidad económica seleccionada
+          </span>
+
+          <span>
+            <i class="legend-line"></i>
+            Alcaldía
+          </span>
+
+        </div>
+
+      </article>
+
+    </div>
+
+
+    <!-- PARTE INFERIOR -->
+    <div class="detail-secondary-grid">
+
+
+      <!-- CLASIFICACIÓN -->
+      <article class="card detail-classification-card">
+
+        <div class="section-title">
+
+          <div>
+
+            <span class="section-kicker">
+              Clasificación
+            </span>
+
+            <h2>
+              Clasificación económica
+            </h2>
+
+          </div>
+
+        </div>
+
+
+        <dl class="detail-compact-list">
+
+          <dt>SCIAN DENUE</dt>
+          <dd id="detail-scian-full">—</dd>
+
+          <dt>Categoría del sistema</dt>
+          <dd>
+            <span
+              id="detail-scian-system"
+              class="activity-code"
+            >
+              —
+            </span>
+          </dd>
+
+          <dt>Actividad DENUE</dt>
+          <dd id="detail-activity-denue">—</dd>
+
+          <dt>Descripción categoría</dt>
+          <dd id="detail-activity-system">—</dd>
+
+          <dt>Sector productivo</dt>
+          <dd id="detail-sector">—</dd>
+
+        </dl>
+
+      </article>
+
+
+      <!-- CONTEXTO -->
+      <article class="card detail-context-card">
+
+        <div class="section-title">
+
+          <div>
+
+            <span class="section-kicker">
+              Contexto espacial
+            </span>
+
+            <h2>
+              Contexto de la ubicación
+            </h2>
+
+          </div>
+
+        </div>
+
+
+        <dl class="detail-compact-list">
+
+          <dt>Clave GEO</dt>
+          <dd id="detail-cvegeo">—</dd>
+
+          <dt>Dirección</dt>
+          <dd id="detail-address">—</dd>
+
+          <dt>Código postal</dt>
+          <dd id="detail-cp">—</dd>
+
+          <dt>AGEB / manzana</dt>
+          <dd id="detail-ageb-manzana">—</dd>
+
+          <dt>Celda espacial (300 m)</dt>
+          <dd id="detail-cell-id">—</dd>
+
+          <dt>Celda X / Y</dt>
+          <dd id="detail-cell-xy">—</dd>
+
+          <dt>Unidades en la misma celda</dt>
+          <dd id="detail-same-cell">—</dd>
+
+          <dt>Teléfono</dt>
+          <dd id="detail-phone">—</dd>
+
+          <dt>Correo</dt>
+          <dd id="detail-email">—</dd>
+
+          <dt>Sitio web</dt>
+          <dd id="detail-web">—</dd>
+
+        </dl>
+
+      </article>
+
+
+      <!-- OTRAS UNIDADES -->
+      <article class="card detail-nearby-card">
+
+        <div class="section-title">
+
+          <div>
+
+            <span class="section-kicker">
+              Entorno inmediato
+            </span>
+
+            <h2>
+              Otras unidades en la misma celda
+            </h2>
+
+            <p id="detail-nearby-summary">
+  Establecimientos más cercanos dentro de
+  la celda espacial de 300 m.
+</p>
+
+          </div>
+
+        </div>
+
+
+        <div class="table-wrap detail-nearby-table-wrap">
+
+          <table class="ranking-table detail-nearby-table">
+
+            <thead>
+
+              <tr>
+
+                <th>ID DENUE</th>
+
+                <th>Nombre</th>
+
+                <th>SCIAN</th>
+
+                <th class="numeric">
+                  Distancia
+                </th>
+
+                <th></th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody id="detail-nearby-body">
+
+              <tr>
+
+                <td
+                  colspan="5"
+                  class="empty-cell"
+                >
+                  Sin información.
+                </td>
+
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </article>
+
+    </div>
+
+
+    <div class="dashboard-footnote card">
+
+      <span class="footnote-icon">
+        i
+      </span>
+
+      <p>
+        Los datos descriptivos provienen del DENUE.
+        La categoría económica del sistema corresponde
+        a la clasificación SCIAN utilizada en el proyecto;
+        la celda espacial se calcula en una cuadrícula de
+        300 m sobre EPSG:32614 para mostrar el contexto
+        inmediato.
+      </p>
+
+    </div>
+
+  </div>
+
+</section>
 
       <section class="view" id="view-prediccion">
         <div class="prediction-layout">
@@ -314,6 +664,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="/assets/app.js?v=4.2"></script>
+  <script src="/assets/app.js?v=5.1"></script>
 </body>
 </html>
