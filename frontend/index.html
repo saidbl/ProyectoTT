@@ -6,7 +6,7 @@
   <title>SAE CDMX — Dashboard</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/assets/styles.css?v=5.1" />
+  <link rel="stylesheet" href="/assets/styles.css?v=5.2" />
 </head>
 <body>
   <div class="app-shell">
@@ -25,7 +25,10 @@
         <button class="nav-item" data-view="detalle"><span class="nav-icon">▤</span><span>Detalle de unidad económica</span></button>
         <button class="nav-item" data-view="prediccion"><span class="nav-icon">⌁</span><span>Módulo de predicción</span></button>
         <button class="nav-item disabled-nav" type="button" title="Se habilitará al integrar los modelos"><span class="nav-icon">◫</span><span>Resultado de predicción</span></button>
-        <button class="nav-item disabled-nav" type="button"><span class="nav-icon">ⓘ</span><span>Acerca del sistema</span></button>
+        <button class="nav-item" data-view="acerca" type="button">
+  <span class="nav-icon">ⓘ</span>
+  <span>Acerca del sistema</span>
+</button>
       </nav>
 
       <div class="sidebar-foot">
@@ -659,11 +662,792 @@
           </article>
         </div>
       </section>
+      <section class="view" id="view-acerca">
+
+  <!-- =====================================================
+       PRESENTACIÓN
+       ===================================================== -->
+
+  <article class="card about-hero">
+
+    <div class="about-hero-content">
+
+      <div class="about-system-mark">
+        ▥
+      </div>
+
+      <div>
+
+        <span class="section-kicker">
+          Sistema de análisis económico
+        </span>
+
+        <h2>
+          SAE CDMX
+        </h2>
+
+        <p>
+          Plataforma web para la caracterización territorial
+          de las unidades económicas de la Ciudad de México
+          mediante información oficial del DENUE,
+          análisis geoespacial y herramientas de visualización.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="about-hero-badges">
+
+      <span class="about-badge">
+        Trabajo Terminal 2026-B023
+      </span>
+
+      <span class="about-badge primary">
+        ESCOM · IPN
+      </span>
+
+    </div>
+
+  </article>
+
+
+  <!-- =====================================================
+       INDICADORES REALES
+       ===================================================== -->
+
+  <div class="about-metrics-grid">
+
+    <article class="card about-metric">
+
+      <div class="about-metric-icon blue">
+        ▦
+      </div>
+
+      <div>
+
+        <span>
+          Unidades económicas
+        </span>
+
+        <strong id="about-total">
+          —
+        </strong>
+
+        <small>
+          Registros disponibles
+        </small>
+
+      </div>
+
+    </article>
+
+
+    <article class="card about-metric">
+
+      <div class="about-metric-icon green">
+        ◉
+      </div>
+
+      <div>
+
+        <span>
+          Cobertura territorial
+        </span>
+
+        <strong id="about-alcaldias">
+          —
+        </strong>
+
+        <small>
+          Alcaldías de la CDMX
+        </small>
+
+      </div>
+
+    </article>
+
+
+    <article class="card about-metric">
+
+      <div class="about-metric-icon violet">
+        ◆
+      </div>
+
+      <div>
+
+        <span>
+          Clasificación
+        </span>
+
+        <strong id="about-activities">
+          —
+        </strong>
+
+        <small>
+          Categorías SCIAN del sistema
+        </small>
+
+      </div>
+
+    </article>
+
+
+    <article class="card about-metric">
+
+      <div class="about-metric-icon orange">
+        ↻
+      </div>
+
+      <div>
+
+        <span>
+          Última actualización
+        </span>
+
+        <strong
+          id="about-update"
+          class="about-update-value"
+        >
+          —
+        </strong>
+
+        <small>
+          DENUE
+        </small>
+
+      </div>
+
+    </article>
+
+  </div>
+
+
+  <!-- =====================================================
+       PROPÓSITO + DATOS
+       ===================================================== -->
+
+  <div class="about-two-column-grid">
+
+
+    <article class="card about-section-card">
+
+      <div class="section-title">
+
+        <div>
+
+          <span class="section-kicker">
+            Propósito
+          </span>
+
+          <h2>
+            ¿Qué hace el sistema?
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-copy">
+
+        <p>
+          SAE CDMX integra información georreferenciada
+          de establecimientos económicos para facilitar
+          el análisis de su distribución territorial dentro
+          de las 16 alcaldías de la Ciudad de México.
+        </p>
+
+        <div class="about-feature-list">
+
+          <div class="about-feature">
+
+            <span>01</span>
+
+            <div>
+              <strong>
+                Exploración económica
+              </strong>
+
+              <p>
+                Consulta y filtrado de unidades económicas
+                mediante actividad, sector y alcaldía.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="about-feature">
+
+            <span>02</span>
+
+            <div>
+              <strong>
+                Análisis territorial
+              </strong>
+
+              <p>
+                Representación espacial mediante mapas,
+                límites administrativos y contexto geográfico.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="about-feature">
+
+            <span>03</span>
+
+            <div>
+              <strong>
+                Caracterización
+              </strong>
+
+              <p>
+                Identificación de concentraciones,
+                actividades predominantes y composición
+                económica por territorio.
+              </p>
+            </div>
+
+          </div>
+
+
+          <div class="about-feature">
+
+            <span>04</span>
+
+            <div>
+              <strong>
+                Análisis predictivo
+              </strong>
+
+              <p>
+                Estimación de la actividad económica
+                predominante en una ubicación a partir
+                del contexto espacial.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </article>
+
+
+
+    <article class="card about-section-card">
+
+      <div class="section-title">
+
+        <div>
+
+          <span class="section-kicker">
+            Información
+          </span>
+
+          <h2>
+            Acerca de los datos
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-data-content">
+
+        <div class="about-data-row">
+
+          <span>
+            Fuente principal
+          </span>
+
+          <strong>
+            INEGI · DENUE
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-row">
+
+          <span>
+            Cobertura
+          </span>
+
+          <strong>
+            Ciudad de México
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-row">
+
+          <span>
+            Clasificación
+          </span>
+
+          <strong>
+            SCIAN
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-row">
+
+          <span>
+            Actualización
+          </span>
+
+          <strong>
+            Automatizada mediante ETL
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-row">
+
+          <span>
+            Estado de sincronización
+          </span>
+
+          <strong
+            id="about-sync-status"
+            class="about-status-pill pending"
+          >
+            Consultando…
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-row">
+
+          <span>
+            Registros sincronizados
+          </span>
+
+          <strong id="about-sync-records">
+            —
+          </strong>
+
+        </div>
+
+
+        <div class="about-data-note">
+
+          <span class="info-dot">
+            i
+          </span>
+
+          <p>
+            El sistema conserva el código SCIAN original
+            proporcionado por DENUE y utiliza una
+            clasificación sectorial normalizada para el
+            análisis territorial.
+          </p>
+
+        </div>
+
+      </div>
+
+    </article>
+
+  </div>
+
+
+  <!-- =====================================================
+       FLUJO DEL SISTEMA
+       ===================================================== -->
+
+  <article class="card about-flow-card">
+
+    <div class="section-title">
+
+      <div>
+
+        <span class="section-kicker">
+          Arquitectura funcional
+        </span>
+
+        <h2>
+          Flujo general de información
+        </h2>
+
+        <p>
+          Desde la fuente oficial hasta la visualización
+          y el análisis territorial.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <div class="about-flow">
+
+      <div class="about-flow-step">
+
+        <div class="about-flow-number">
+          1
+        </div>
+
+        <strong>
+          INEGI / DENUE
+        </strong>
+
+        <span>
+          Fuente oficial
+        </span>
+
+      </div>
+
+
+      <div class="about-flow-arrow">
+        →
+      </div>
+
+
+      <div class="about-flow-step">
+
+        <div class="about-flow-number">
+          2
+        </div>
+
+        <strong>
+          Pipeline ETL
+        </strong>
+
+        <span>
+          Extracción y validación
+        </span>
+
+      </div>
+
+
+      <div class="about-flow-arrow">
+        →
+      </div>
+
+
+      <div class="about-flow-step">
+
+        <div class="about-flow-number">
+          3
+        </div>
+
+        <strong>
+          PostgreSQL
+        </strong>
+
+        <span>
+          PostGIS
+        </span>
+
+      </div>
+
+
+      <div class="about-flow-arrow">
+        →
+      </div>
+
+
+      <div class="about-flow-step">
+
+        <div class="about-flow-number">
+          4
+        </div>
+
+        <strong>
+          FastAPI
+        </strong>
+
+        <span>
+          Servicios REST
+        </span>
+
+      </div>
+
+
+      <div class="about-flow-arrow">
+        →
+      </div>
+
+
+      <div class="about-flow-step">
+
+        <div class="about-flow-number">
+          5
+        </div>
+
+        <strong>
+          SAE CDMX
+        </strong>
+
+        <span>
+          Visualización y análisis
+        </span>
+
+      </div>
+
+    </div>
+
+  </article>
+
+
+  <!-- =====================================================
+       TECNOLOGÍAS + INTERPRETACIÓN
+       ===================================================== -->
+
+  <div class="about-two-column-grid">
+
+
+    <article class="card about-section-card">
+
+      <div class="section-title">
+
+        <div>
+
+          <span class="section-kicker">
+            Implementación
+          </span>
+
+          <h2>
+            Tecnologías principales
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-tech-grid">
+
+        <div class="about-tech">
+          <strong>Python</strong>
+          <span>Procesamiento de datos</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>FastAPI</strong>
+          <span>Backend y servicios REST</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>PostgreSQL</strong>
+          <span>Persistencia relacional</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>PostGIS</strong>
+          <span>Análisis geoespacial</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>Leaflet</strong>
+          <span>Mapas interactivos</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>Chart.js</strong>
+          <span>Visualización estadística</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>Docker</strong>
+          <span>Contenerización</span>
+        </div>
+
+        <div class="about-tech">
+          <strong>SCIAN</strong>
+          <span>Clasificación económica</span>
+        </div>
+
+      </div>
+
+    </article>
+
+
+
+    <article class="card about-section-card">
+
+      <div class="section-title">
+
+        <div>
+
+          <span class="section-kicker">
+            Interpretación
+          </span>
+
+          <h2>
+            Alcance de los resultados
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-warning">
+
+        <div class="about-warning-icon">
+          i
+        </div>
+
+        <div>
+
+          <strong>
+            Información descriptiva
+          </strong>
+
+          <p>
+            Los datos de establecimientos mostrados por
+            el sistema provienen del DENUE y conservan
+            trazabilidad respecto a la fuente oficial.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-warning">
+
+        <div class="about-warning-icon">
+          ≈
+        </div>
+
+        <div>
+
+          <strong>
+            Predicción como apoyo
+          </strong>
+
+          <p>
+            Las estimaciones del módulo predictivo tienen
+            carácter analítico y complementario. No
+            sustituyen ni modifican la información oficial
+            publicada por el INEGI.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="about-warning">
+
+        <div class="about-warning-icon">
+          ⌖
+        </div>
+
+        <div>
+
+          <strong>
+            Dependencia espacial
+          </strong>
+
+          <p>
+            La caracterización considera la distribución
+            de las actividades económicas en el entorno
+            geográfico de cada ubicación.
+          </p>
+
+        </div>
+
+      </div>
+
+    </article>
+
+  </div>
+
+
+  <!-- =====================================================
+       PROYECTO
+       ===================================================== -->
+
+  <article class="card about-project-card">
+
+    <div>
+
+      <span class="section-kicker">
+        Proyecto académico
+      </span>
+
+      <h2>
+        Trabajo Terminal 2026-B023
+      </h2>
+
+      <p>
+        Sistema web para el despliegue de la caracterización
+        de las unidades económicas de la Ciudad de México
+        empleando un modelo predictivo.
+      </p>
+
+    </div>
+
+
+    <div class="about-project-meta">
+
+      <div>
+
+        <span>
+          Institución
+        </span>
+
+        <strong>
+          Instituto Politécnico Nacional
+        </strong>
+
+      </div>
+
+      <div>
+
+        <span>
+          Escuela
+        </span>
+
+        <strong>
+          Escuela Superior de Cómputo
+        </strong>
+
+      </div>
+
+      <div>
+
+        <span>
+          Integrantes
+        </span>
+
+        <strong>
+          García García Ximena
+          <br>
+          Maldonado Romero Daniel
+          <br>
+          Vázquez Blancas César Said
+        </strong>
+
+      </div>
+
+    </div>
+
+  </article>
+
+</section>
     </main>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="/assets/app.js?v=5.1"></script>
+  <script src="/assets/app.js?v=5.2"></script>
 </body>
 </html>

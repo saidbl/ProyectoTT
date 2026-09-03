@@ -1570,6 +1570,243 @@ async function loadDataUpdateStatus() {
     $('last-query').textContent = 'No disponible';
   }
 }
+function formatAboutDate(value) {
+
+  if (!value) {
+    return 'Pendiente';
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return 'No disponible';
+  }
+
+  return new Intl.DateTimeFormat(
+    'es-MX',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }
+  ).format(date);
+}
+
+
+function renderAboutSyncStatus(state) {
+
+  const element =
+    $('about-sync-status');
+
+  if (!element) {
+    return;
+  }
+
+  const status =
+    String(
+      state?.status ??
+      ''
+    ).toLowerCase();
+
+
+  let text =
+    'Estado desconocido';
+
+  let className =
+    'pending';
+
+
+  if (status === 'success') {
+
+    text =
+      'Actualización correcta';
+
+    className =
+      'success';
+
+  } else if (
+    status === 'running'
+  ) {
+
+    text =
+      'Actualización en curso';
+
+    className =
+      'running';
+
+  } else if (
+    status === 'failed'
+  ) {
+
+    text =
+      'Último intento con error';
+
+    className =
+      'error';
+
+  } else if (
+    status === 'pending' ||
+    status === 'not_initialized'
+  ) {
+
+    text =
+      'Pendiente';
+
+    className =
+      'pending';
+  }
+
+
+  element.className =
+    `about-status-pill ${className}`;
+
+  element.textContent =
+    text;
+}
+
+
+async function loadAboutSystem() {
+  detailText(
+    'about-total',
+    '…'
+  );
+
+  detailText(
+    'about-alcaldias',
+    '…'
+  );
+
+  detailText(
+    'about-activities',
+    '…'
+  );
+
+  detailText(
+    'about-update',
+    'Consultando…'
+  );
+
+  detailText(
+    'about-sync-records',
+    '…'
+  );
+
+
+  try {
+    const [
+      summary,
+      actividades,
+      state
+    ] = await Promise.all([
+
+      api('/dashboard/resumen'),
+
+      api('/actividades'),
+
+      api('/datos/estado-actualizacion')
+
+    ]);
+    detailText(
+      'about-total',
+      fmt(
+        summary.total_unidades
+      )
+    );
+
+
+    detailText(
+      'about-alcaldias',
+      fmt(
+        summary.alcaldias_representadas
+      )
+    );
+
+
+    detailText(
+      'about-activities',
+      fmt(
+        Array.isArray(
+          actividades
+        )
+          ? actividades.length
+          : 0
+      )
+    );
+    detailText(
+      'about-update',
+      formatAboutDate(
+        state.last_success_at
+      )
+    );
+    detailText(
+      'about-sync-records',
+
+      state.last_records != null
+
+        ? `${fmt(
+            state.last_records
+          )} registros`
+
+        : 'No disponible'
+    );
+
+
+    renderAboutSyncStatus(
+      state
+    );
+
+
+  } catch (err) {
+
+    console.error(
+      'No se pudo cargar Acerca del sistema:',
+      err
+    );
+
+
+    detailText(
+      'about-total',
+      'No disponible'
+    );
+
+    detailText(
+      'about-alcaldias',
+      'No disponible'
+    );
+
+    detailText(
+      'about-activities',
+      'No disponible'
+    );
+
+    detailText(
+      'about-update',
+      'No disponible'
+    );
+
+    detailText(
+      'about-sync-records',
+      'No disponible'
+    );
+
+
+    const status =
+      $('about-sync-status');
+
+    if (status) {
+
+      status.className =
+        'about-status-pill error';
+
+      status.textContent =
+        'API no disponible';
+    }
+  }
+}
 
 function setDashboardLoading(isLoading) {
   $('apply-filters').disabled = isLoading;
@@ -1629,17 +1866,28 @@ function switchView(name) {
   document.querySelector(`.nav-item[data-view="${name}"]`)?.classList.add('active');
 
   const labels = {
-    dashboard: 'Dashboard principal',
-    alcaldia: 'Consulta por alcaldía',
-    detalle: 'Detalle de unidad económica',
-    prediccion: 'Módulo de predicción',
-  };
+  dashboard: 'Dashboard principal',
+  alcaldia: 'Consulta por alcaldía',
+  detalle: 'Detalle de unidad económica',
+  prediccion: 'Módulo de predicción',
+  acerca: 'Acerca del sistema',
+};
   const subtitles = {
-    dashboard: 'Panorama general de las unidades económicas registradas en la Ciudad de México.',
-    alcaldia: 'Análisis detallado de las unidades económicas de una alcaldía seleccionada.',
-    detalle: 'Información individual y contexto territorial de una unidad económica.',
-    prediccion: 'Selecciona una ubicación para analizar su entorno económico.',
-  };
+  dashboard:
+    'Panorama general de las unidades económicas registradas en la Ciudad de México.',
+
+  alcaldia:
+    'Análisis detallado de las unidades económicas de una alcaldía seleccionada.',
+
+  detalle:
+    'Información individual y contexto territorial de una unidad económica.',
+
+  prediccion:
+    'Selecciona una ubicación para analizar su entorno económico.',
+
+  acerca:
+    'Información general, fuentes de datos y arquitectura del sistema.',
+};
 
   $('page-title').textContent = labels[name];
   $('breadcrumb-current').textContent = labels[name];
@@ -1649,6 +1897,11 @@ function switchView(name) {
     if ($('filter-alcaldia').value) $('alcaldia-select').value = $('filter-alcaldia').value;
     loadAlcaldiaModule().catch(console.error);
   }
+  if (name === 'acerca') {
+
+  loadAboutSystem()
+    .catch(console.error);
+}
 
   setTimeout(() => {
 
