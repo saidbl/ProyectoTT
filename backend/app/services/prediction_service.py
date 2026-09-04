@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.ml.inference import (
@@ -147,6 +148,46 @@ def _activity_catalog(
         }
         for row in rows
     }
+def _save_prediction(
+    db: Session,
+    *,
+    lat: float,
+    lon: float,
+    activity_id: int | None,
+    confidence: float,
+) -> None:
+
+    try:
+        db.execute(
+            text(
+                """
+                INSERT INTO prediccion (
+                    lat,
+                    lon,
+                    actividad_predicha,
+                    confianza
+                )
+                VALUES (
+                    :lat,
+                    :lon,
+                    :activity_id,
+                    :confidence
+                );
+                """
+            ),
+            {
+                "lat": float(lat),
+                "lon": float(lon),
+                "activity_id": activity_id,
+                "confidence": float(confidence),
+            },
+        )
+
+        db.commit()
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 def _decorate_prediction(
     raw_item: dict,
@@ -438,6 +479,18 @@ def predict(
     ambiguity = result[
         "ambiguity"
     ]
+
+    _save_prediction(
+        db,
+        lat=lat,
+        lon=lon,
+        activity_id=prediction[
+            "activity_id"
+        ],
+        confidence=prediction[
+            "probability"
+        ],
+    )
 
 
     if ambiguity[
