@@ -505,10 +505,6 @@ def predict(
                 "model_version"
             ],
 
-        # ----------------------------------------------------
-        # CELDA ESPACIAL
-        # ----------------------------------------------------
-
         "cell":
             {
                 "x":
@@ -529,6 +525,11 @@ def predict(
                 "occupied":
                     result[
                         "occupied"
+                    ],
+
+                "polygon":
+                    result[
+                        "cell_polygon"
                     ],
             },
 

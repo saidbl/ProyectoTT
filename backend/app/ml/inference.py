@@ -19,11 +19,11 @@ _TRANSFORMER = Transformer.from_crs(
     "EPSG:32614",
     always_xy=True,
 )
-
-
-# ============================================================
-# HELPERS DE PROBABILIDADES
-# ============================================================
+_INVERSE_TRANSFORMER = Transformer.from_crs(
+    "EPSG:32614",
+    "EPSG:4326",
+    always_xy=True,
+)
 
 def normalize_proba(
     proba,
@@ -167,6 +167,77 @@ def normalize_ovr(
         row_sum
     )
 
+def build_cell_polygon(
+    cell_x: int,
+    cell_y: int,
+    cell_size: int,
+):
+    min_x = (
+        int(cell_x)
+        *
+        int(cell_size)
+    )
+
+    min_y = (
+        int(cell_y)
+        *
+        int(cell_size)
+    )
+
+    max_x = (
+        min_x
+        +
+        int(cell_size)
+    )
+
+    max_y = (
+        min_y
+        +
+        int(cell_size)
+    )
+
+    utm_corners = [
+        (
+            min_x,
+            min_y,
+        ),
+        (
+            max_x,
+            min_y,
+        ),
+        (
+            max_x,
+            max_y,
+        ),
+        (
+            min_x,
+            max_y,
+        ),
+    ]
+
+    polygon = []
+
+    for utm_x, utm_y in utm_corners:
+
+        lon, lat = (
+            _INVERSE_TRANSFORMER
+            .transform(
+                utm_x,
+                utm_y,
+            )
+        )
+
+        polygon.append(
+            {
+                "lat":
+                    float(lat),
+
+                "lon":
+                    float(lon),
+            }
+        )
+
+    return polygon
 def build_runtime_features(
     lat: float,
     lon: float,
@@ -201,6 +272,12 @@ def build_runtime_features(
         utm_y
         /
         cell_size
+    )
+
+    cell_polygon = build_cell_polygon(
+        cell_x,
+        cell_y,
+        cell_size,
     )
 
     (
@@ -357,6 +434,8 @@ def build_runtime_features(
                 1,
                 -1,
             ),
+        "cell_polygon":
+            cell_polygon,
     }
 
 def predict_macro_probabilities(
@@ -839,6 +918,10 @@ def predict_activity(
         "cell_y":
             feature_data[
                 "cell_y"
+            ],
+        "cell_polygon":
+            feature_data[
+                "cell_polygon"
             ],
 
         "cell_size":

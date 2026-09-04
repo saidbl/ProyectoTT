@@ -12,6 +12,8 @@ let alcaldiaMapReloadTimer = null;
 let alcaldiaScianChart;
 let alcaldiaComparisonChart;
 let predictionMarker;
+let predictionCellLayer = null;
+
 let selectedPredictionPoint = null;
 let lastPredictionResult = null;
 let sectorChart;
@@ -1866,7 +1868,118 @@ function setPredictionResultEnabled(enabled) {
     : 'Genera primero una predicción';
 }
 
+function clearPredictionCell() {
 
+  if (
+    predictionCellLayer &&
+    predictionMap
+  ) {
+
+    predictionMap.removeLayer(
+      predictionCellLayer
+    );
+
+    predictionCellLayer = null;
+  }
+}
+
+
+function drawPredictionCell(
+  cell,
+  {
+    fit = false
+  } = {}
+) {
+
+  clearPredictionCell();
+
+
+  if (
+    !cell ||
+    !Array.isArray(
+      cell.polygon
+    ) ||
+    cell.polygon.length < 4
+  ) {
+
+    return;
+  }
+
+
+  const latLngs =
+    cell.polygon
+      .map(
+        point => [
+          Number(
+            point.lat
+          ),
+          Number(
+            point.lon
+          ),
+        ]
+      )
+      .filter(
+        point =>
+          Number.isFinite(
+            point[0]
+          )
+          &&
+          Number.isFinite(
+            point[1]
+          )
+      );
+
+
+  if (
+    latLngs.length < 4
+  ) {
+
+    return;
+  }
+
+
+  predictionCellLayer =
+    L
+      .polygon(
+        latLngs,
+        {
+          weight: 3,
+          opacity: 0.9,
+          fillOpacity: 0.12,
+          dashArray: '7 5'
+        }
+      )
+      .addTo(
+        predictionMap
+      );
+
+
+  predictionCellLayer.bindTooltip(
+    `
+      <strong>Celda analizada</strong><br>
+      ${cell.size_m} × ${cell.size_m} m<br>
+      Celda ${cell.x}, ${cell.y}
+    `,
+    {
+      sticky: true
+    }
+  );
+
+
+  if (fit) {
+
+    predictionMap.fitBounds(
+      predictionCellLayer.getBounds(),
+      {
+        padding: [
+          30,
+          30
+        ],
+        maxZoom: 16
+      }
+    );
+  }
+}
 function clearPredictionResult() {
 
   lastPredictionResult = null;
@@ -1929,6 +2042,7 @@ function setPredictionPoint(
       numericLat,
       numericLon
     );
+  clearPredictionCell();
 
 
   if (predictionMarker) {
@@ -2229,7 +2343,7 @@ function renderPredictionResult(result) {
       `${result.cell.x}, ${result.cell.y}`;
 
     $('result-cell-size').textContent =
-      `${fmt(result.cell.size_m)} m`;
+  `${fmt(result.cell.size_m)} × ${fmt(result.cell.size_m)} m`;
 
     $('result-occupied').textContent =
       result.cell.occupied
@@ -2507,11 +2621,22 @@ async function runPrediction() {
 
 
     lastPredictionResult =
-      result;
+  result;
 
-    renderPredictionResult(
-      result
-    );
+
+if (
+  result.cell
+) {
+
+  drawPredictionCell(
+    result.cell
+  );
+}
+
+
+renderPredictionResult(
+  result
+);
 
     setPredictionResultEnabled(
       true
@@ -2693,6 +2818,28 @@ $('prediction-new-point').addEventListener(
     switchView(
       'prediccion'
     );
+
+    setTimeout(
+      () => {
+
+        predictionMap.invalidateSize();
+
+
+        if (
+          lastPredictionResult?.cell
+        ) {
+
+          drawPredictionCell(
+            lastPredictionResult.cell,
+            {
+              fit: true
+            }
+          );
+        }
+
+      },
+      100
+    );
   }
 );
 
@@ -2703,6 +2850,28 @@ $('prediction-result-back').addEventListener(
 
     switchView(
       'prediccion'
+    );
+
+    setTimeout(
+      () => {
+
+        predictionMap.invalidateSize();
+
+
+        if (
+          lastPredictionResult?.cell
+        ) {
+
+          drawPredictionCell(
+            lastPredictionResult.cell,
+            {
+              fit: true
+            }
+          );
+        }
+
+      },
+      100
     );
   }
 );

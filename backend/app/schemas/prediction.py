@@ -18,7 +18,13 @@ class PredictionRequest(
         le=180,
     )
 
+class PredictionCoordinate(
+    BaseModel
+):
 
+    lat: float
+
+    lon: float
 class PredictionCell(
     BaseModel
 ):
@@ -30,6 +36,12 @@ class PredictionCell(
     size_m: int
 
     occupied: bool
+
+    polygon: list[
+        PredictionCoordinate
+    ] = Field(
+        default_factory=list
+    )
 
 
 class PredictionAlternative(

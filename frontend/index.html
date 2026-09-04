@@ -6,7 +6,7 @@
   <title>SAE CDMX — Dashboard</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/assets/styles.css?v=5.5" />
+  <link rel="stylesheet" href="/assets/styles.css?v=5.6" />
 </head>
 <body>
   <div class="app-shell">
@@ -687,7 +687,31 @@
 
       </div>
 
-      <div id="prediction-map"></div>
+      <div class="prediction-map-wrapper">
+
+  <div id="prediction-map"></div>
+
+  <div
+    id="prediction-cell-legend"
+    class="prediction-cell-legend"
+  >
+
+    <span class="prediction-cell-legend-box">
+    </span>
+
+    <div>
+      <strong>
+        Celda de análisis
+      </strong>
+
+      <small>
+        300 × 300 m
+      </small>
+    </div>
+
+  </div>
+
+</div>
 
     </article>
 
@@ -989,10 +1013,10 @@
         <dt>Longitud</dt>
         <dd id="result-lon">—</dd>
 
-        <dt>Celda espacial</dt>
+        <dt>Celda UTM analizada</dt>
         <dd id="result-cell">—</dd>
 
-        <dt>Tamaño de celda</dt>
+        <dt>Área de análisis</dt>
         <dd id="result-cell-size">—</dd>
 
         <dt>DENUE en la celda</dt>
@@ -1826,6 +1850,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="/assets/app.js?v=5.5"></script>
+  <script src="/assets/app.js?v=5.6"></script>
 </body>
 </html>
