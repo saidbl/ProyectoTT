@@ -16,3 +16,6 @@ models/*.joblib
 models/*.pkl
 frontend/node_modules/
 bd_plain.sql
+# Artefactos ML generados localmente
+backend/models/final_422/*.joblib
+denue_2026.sql

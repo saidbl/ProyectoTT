@@ -1,0 +1,47 @@
+{
+  "policy_version": "sae-cdmx-ambiguity-422-v1",
+  "decision": "ENABLE_AMBIGUITY_POLICY",
+  "message_when_rejected": "Zona altamente ambigua",
+  "message_detail_when_rejected": "La evidencia del modelo no permite seleccionar una actividad económica individual con suficiente claridad. Consultar el Top-3.",
+  "other_class_is_not_ambiguity": true,
+  "features": [
+    "p_selected",
+    "margin_top12",
+    "entropy_norm"
+  ],
+  "selection_constraints": {
+    "target_accepted_accuracy": 0.9,
+    "target_non_a7_accuracy": 0.65,
+    "minimum_coverage": 0.25,
+    "minimum_non_a7_accepted": 30
+  },
+  "crossfit_evaluation": {
+    "coverage": 0.7509086188992731,
+    "accepted": 5785,
+    "ambiguous": 1919,
+    "accepted_accuracy": 0.9465859982713916,
+    "accepted_macro_f1": 0.6966206980747867,
+    "accepted_balanced_accuracy": 0.7169045449587284,
+    "non_a7_accepted": 673,
+    "non_a7_accuracy": 0.649331352154532,
+    "a7_accepted": 5112,
+    "a7_accuracy": 0.9857198748043818
+  },
+  "final_policy": {
+    "p_threshold": 0.7,
+    "margin_threshold": 0.0,
+    "entropy_threshold": 0.4
+  },
+  "final_oof_metrics": {
+    "coverage": 0.7470145379023884,
+    "accepted": 5755,
+    "ambiguous": 1949,
+    "accepted_accuracy": 0.9483927019982624,
+    "accepted_macro_f1": 0.7005581086113302,
+    "accepted_balanced_accuracy": 0.7210114919376641,
+    "non_a7_accepted": 663,
+    "non_a7_accuracy": 0.6546003016591252,
+    "a7_accepted": 5092,
+    "a7_accuracy": 0.9866457187745483
+  }
+}

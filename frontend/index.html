@@ -6,7 +6,7 @@
   <title>SAE CDMX — Dashboard</title>
   <link rel="preconnect" href="https://unpkg.com" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="/assets/styles.css?v=5.2" />
+  <link rel="stylesheet" href="/assets/styles.css?v=5.5" />
 </head>
 <body>
   <div class="app-shell">
@@ -24,7 +24,17 @@
         <button class="nav-item" data-view="alcaldia"><span class="nav-icon">⌖</span><span>Consulta por alcaldía</span></button>
         <button class="nav-item" data-view="detalle"><span class="nav-icon">▤</span><span>Detalle de unidad económica</span></button>
         <button class="nav-item" data-view="prediccion"><span class="nav-icon">⌁</span><span>Módulo de predicción</span></button>
-        <button class="nav-item disabled-nav" type="button" title="Se habilitará al integrar los modelos"><span class="nav-icon">◫</span><span>Resultado de predicción</span></button>
+        <button
+  id="prediction-result-nav"
+  class="nav-item disabled-nav"
+  data-view="resultado-prediccion"
+  type="button"
+  disabled
+  title="Genera primero una predicción"
+>
+  <span class="nav-icon">◫</span>
+  <span>Resultado de predicción</span>
+</button>
         <button class="nav-item" data-view="acerca" type="button">
   <span class="nav-icon">ⓘ</span>
   <span>Acerca del sistema</span>
@@ -649,19 +659,387 @@
 </section>
 
       <section class="view" id="view-prediccion">
-        <div class="prediction-layout">
-          <article class="card">
-            <div class="section-title"><div><span class="section-kicker">Análisis espacial</span><h2>Módulo de predicción</h2><p>Selecciona un punto sobre el mapa.</p></div><span class="tag warning">Modelo ML pendiente</span></div>
-            <div id="prediction-map"></div>
-          </article>
-          <article class="card prediction-panel">
-            <h2>Ubicación seleccionada</h2>
-            <dl><dt>Latitud</dt><dd id="pred-lat">—</dd><dt>Longitud</dt><dd id="pred-lon">—</dd><dt>Unidades cercanas</dt><dd id="pred-nearby">—</dd><dt>Actividad local dominante</dt><dd id="pred-dominant">—</dd></dl>
-            <button id="predict-btn" class="primary wide" disabled>Analizar punto seleccionado</button>
-            <p id="prediction-message" class="muted">La interacción espacial ya está preparada; la predicción se habilitará al integrar los modelos entrenados.</p>
-          </article>
+
+  <div class="prediction-layout">
+
+    <article class="card">
+
+      <div class="section-title">
+
+        <div>
+          <span class="section-kicker">
+            Análisis espacial
+          </span>
+
+          <h2>
+            Módulo de predicción
+          </h2>
+
+          <p>
+            Selecciona un punto sobre el mapa para estimar
+            la actividad económica predominante.
+          </p>
         </div>
-      </section>
+
+        <span class="tag success">
+          Modelo ML integrado
+        </span>
+
+      </div>
+
+      <div id="prediction-map"></div>
+
+    </article>
+
+    <article class="card prediction-panel">
+
+      <h2>
+        Ubicación seleccionada
+      </h2>
+
+      <div class="prediction-coordinate-input">
+
+  <div class="prediction-coordinate-header">
+
+    <div>
+      <span class="section-kicker">
+        Entrada manual
+      </span>
+
+      <h3>
+        Coordenadas
+      </h3>
+    </div>
+
+    <span class="coordinate-hint">
+      WGS84
+    </span>
+
+  </div>
+
+  <div class="prediction-coordinate-fields">
+
+    <label>
+      <span>Latitud</span>
+
+      <input
+        id="manual-pred-lat"
+        type="number"
+        step="any"
+        min="-90"
+        max="90"
+        placeholder="19.432600"
+        autocomplete="off"
+      />
+    </label>
+
+    <label>
+      <span>Longitud</span>
+
+      <input
+        id="manual-pred-lon"
+        type="number"
+        step="any"
+        min="-180"
+        max="180"
+        placeholder="-99.133200"
+        autocomplete="off"
+      />
+    </label>
+
+  </div>
+
+  <button
+    id="use-manual-coordinates"
+    class="secondary wide"
+    type="button"
+  >
+    Ubicar coordenadas en el mapa
+  </button>
+
+  <p
+    id="manual-coordinate-error"
+    class="coordinate-error hidden"
+  >
+  </p>
+
+</div>
+
+<div class="prediction-input-separator">
+  <span>o selecciona directamente en el mapa</span>
+</div>
+
+      <dl>
+
+        <dt>Latitud</dt>
+        <dd id="pred-lat">—</dd>
+
+        <dt>Longitud</dt>
+        <dd id="pred-lon">—</dd>
+
+        <dt>Unidades cercanas</dt>
+        <dd id="pred-nearby">—</dd>
+
+        <dt>Actividad observada en 800 m</dt>
+        <dd id="pred-dominant">—</dd>
+
+      </dl>
+
+      <button
+        id="predict-btn"
+        class="primary wide"
+        disabled
+      >
+        Analizar punto seleccionado
+      </button>
+
+      <p
+        id="prediction-message"
+        class="muted"
+      >
+        Haz clic en una ubicación de la Ciudad de México.
+      </p>
+
+      <div class="prediction-model-note">
+
+        <span class="info-dot">i</span>
+
+        <p>
+          El modelo trabaja con celdas espaciales de 300 m
+          y combina contexto económico, características
+          estructurales y modelos auxiliares.
+        </p>
+
+      </div>
+
+    </article>
+
+  </div>
+
+</section>
+
+
+<section
+  class="view"
+  id="view-resultado-prediccion"
+>
+
+  <div class="prediction-result-layout">
+
+    <article class="card prediction-result-main">
+
+      <div class="section-title">
+
+        <div>
+
+          <span class="section-kicker">
+            Resultado del modelo
+          </span>
+
+          <h2>
+            Predicción económica
+          </h2>
+
+          <p>
+            Resultado estimado para la ubicación seleccionada.
+          </p>
+
+        </div>
+
+        <span class="tag success">
+          XGBoost 422
+        </span>
+
+      </div>
+
+
+      <div class="prediction-result-hero">
+
+        <div class="prediction-result-icon">
+          ⌁
+        </div>
+
+        <div class="prediction-result-content">
+
+          <span class="prediction-result-label">
+  Resultado del análisis
+</span>
+
+<div
+  id="result-confidence-status"
+  class="prediction-confidence-status"
+>
+  —
+</div>
+
+<h3 id="result-activity">
+  —
+</h3>
+
+          <div class="prediction-result-meta">
+
+            <span>
+              SCIAN:
+              <strong id="result-scian">—</strong>
+            </span>
+
+            <span>
+              Probabilidad:
+              <strong id="result-probability">—</strong>
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div
+  id="result-ambiguity-message"
+  class="prediction-ambiguity-message hidden"
+>
+</div>
+
+      <div
+        id="result-grouped-note"
+        class="prediction-grouped-note hidden"
+      >
+        <strong>
+          Clase agrupada: Otras actividades económicas
+        </strong>
+
+        <span id="result-grouped-text">
+          —
+        </span>
+      </div>
+
+
+      <div class="prediction-subsection">
+
+        <div class="prediction-subsection-title">
+
+          <div>
+            <span class="section-kicker">
+              Explicación probabilística
+            </span>
+
+            <h3>
+              Top-3 de actividades
+            </h3>
+          </div>
+
+        </div>
+
+        <div
+          id="prediction-top3"
+          class="prediction-top3"
+        >
+        </div>
+
+      </div>
+
+
+      <div class="prediction-result-actions">
+
+        <button
+          id="prediction-new-point"
+          class="primary"
+          type="button"
+        >
+          Analizar otra ubicación
+        </button>
+
+        <button
+          id="prediction-result-back"
+          class="secondary"
+          type="button"
+        >
+          Volver al mapa
+        </button>
+
+      </div>
+
+    </article>
+
+
+    <aside class="card prediction-result-side">
+
+      <div class="section-title compact">
+
+        <div>
+
+          <span class="section-kicker">
+            Contexto espacial
+          </span>
+
+          <h2>
+            Datos de la predicción
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <dl class="prediction-detail-list">
+
+        <dt>Latitud</dt>
+        <dd id="result-lat">—</dd>
+
+        <dt>Longitud</dt>
+        <dd id="result-lon">—</dd>
+
+        <dt>Celda espacial</dt>
+        <dd id="result-cell">—</dd>
+
+        <dt>Tamaño de celda</dt>
+        <dd id="result-cell-size">—</dd>
+
+        <dt>DENUE en la celda</dt>
+        <dd id="result-occupied">—</dd>
+
+        <dt>Unidades en 800 m</dt>
+        <dd id="result-nearby">—</dd>
+
+        <dt>Actividad observada</dt>
+        <dd id="result-dominant">—</dd>
+
+        <dt>Versión del modelo</dt>
+        <dd id="result-model-version">—</dd>
+
+      </dl>
+
+
+      <div class="prediction-context-note">
+
+  <span class="info-dot">
+    ✓
+  </span>
+
+  <div>
+
+    <p>
+      La respuesta definitiva se muestra únicamente
+      cuando cumple la política de claridad validada
+      mediante predicciones espaciales fuera de muestra.
+    </p>
+
+    <div
+      id="result-policy-detail"
+      class="prediction-policy-detail"
+    >
+    </div>
+
+  </div>
+
+</div>
+
+
+    </aside>
+
+  </div>
+
+</section>
       <section class="view" id="view-acerca">
 
   <!-- =====================================================
@@ -1448,6 +1826,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="/assets/app.js?v=5.2"></script>
+  <script src="/assets/app.js?v=5.5"></script>
 </body>
 </html>

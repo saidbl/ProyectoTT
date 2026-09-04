@@ -13,6 +13,7 @@ let alcaldiaScianChart;
 let alcaldiaComparisonChart;
 let predictionMarker;
 let selectedPredictionPoint = null;
+let lastPredictionResult = null;
 let sectorChart;
 let alcaldiaChart;
 let alcaldiasGeoJSON = null;
@@ -1831,31 +1832,709 @@ function clearFilters() {
   refreshActivitiesBySector().then(loadDashboard);
 }
 
-function onPredictionClick(e) {
-  selectedPredictionPoint = e.latlng;
-  if (predictionMarker) predictionMarker.remove();
-  predictionMarker = L.marker(e.latlng).addTo(predictionMap);
-  $('pred-lat').textContent = e.latlng.lat.toFixed(6);
-  $('pred-lon').textContent = e.latlng.lng.toFixed(6);
-  $('pred-nearby').textContent = '—';
-  $('pred-dominant').textContent = '—';
-  $('predict-btn').disabled = false;
+
+
+function probabilityLabel(value, digits = 1) {
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return '—';
+  }
+
+  return `${(number * 100).toFixed(digits)}%`;
 }
 
-async function runPrediction() {
-  if (!selectedPredictionPoint) return;
-  $('prediction-message').textContent = 'Analizando entorno espacial…';
+
+function setPredictionResultEnabled(enabled) {
+
+  const nav = $('prediction-result-nav');
+
+  if (!nav) {
+    return;
+  }
+
+  nav.disabled = !enabled;
+
+  nav.classList.toggle(
+    'disabled-nav',
+    !enabled
+  );
+
+  nav.title = enabled
+    ? 'Ver el último resultado de predicción'
+    : 'Genera primero una predicción';
+}
+
+
+function clearPredictionResult() {
+
+  lastPredictionResult = null;
+
+  setPredictionResultEnabled(
+    false
+  );
+}
+
+
+function setPredictionPoint(
+  lat,
+  lon,
+  {
+    centerMap = false,
+    source = 'map'
+  } = {}
+) {
+
+  const numericLat =
+    Number(lat);
+
+  const numericLon =
+    Number(lon);
+
+  if (
+    !Number.isFinite(numericLat) ||
+    !Number.isFinite(numericLon)
+  ) {
+
+    throw new Error(
+      'Las coordenadas deben ser valores numéricos.'
+    );
+  }
+
+
+  if (
+    numericLat < -90 ||
+    numericLat > 90
+  ) {
+
+    throw new Error(
+      'La latitud debe estar entre -90 y 90.'
+    );
+  }
+
+
+  if (
+    numericLon < -180 ||
+    numericLon > 180
+  ) {
+
+    throw new Error(
+      'La longitud debe estar entre -180 y 180.'
+    );
+  }
+
+  selectedPredictionPoint =
+    L.latLng(
+      numericLat,
+      numericLon
+    );
+
+
+  if (predictionMarker) {
+    predictionMarker.remove();
+  }
+
+
+  predictionMarker =
+    L
+      .marker(
+        selectedPredictionPoint
+      )
+      .addTo(
+        predictionMap
+      );
+
+  if (centerMap) {
+
+    const currentZoom =
+      predictionMap.getZoom();
+
+    predictionMap.setView(
+      selectedPredictionPoint,
+      Math.max(
+        currentZoom,
+        15
+      )
+    );
+  }
+
+  $('manual-pred-lat').value =
+    numericLat.toFixed(6);
+
+  $('manual-pred-lon').value =
+    numericLon.toFixed(6);
+
+  $('pred-lat').textContent =
+    numericLat.toFixed(6);
+
+  $('pred-lon').textContent =
+    numericLon.toFixed(6);
+
+  $('pred-nearby').textContent =
+    '—';
+
+  $('pred-dominant').textContent =
+    '—';
+
+
+  if (source === 'manual') {
+
+    $('prediction-message').textContent =
+      'Coordenadas ubicadas en el mapa. Presiona “Analizar punto seleccionado”.';
+
+  } else {
+
+    $('prediction-message').textContent =
+      'Punto seleccionado en el mapa. Presiona “Analizar punto seleccionado”.';
+  }
+
+
+  $('manual-coordinate-error')
+    .classList
+    .add(
+      'hidden'
+    );
+
+  $('manual-coordinate-error').textContent =
+    '';
+
+
+  $('predict-btn').disabled =
+    false;
+  clearPredictionResult();
+}
+
+
+function onPredictionClick(e) {
+
   try {
-    const result = await api('/predicciones', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat: selectedPredictionPoint.lat, lon: selectedPredictionPoint.lng }),
-    });
-    $('pred-nearby').textContent = fmt(result.nearby_units);
-    $('pred-dominant').textContent = result.dominant_activity || 'Sin actividad cercana';
-    $('prediction-message').textContent = result.message;
+
+    setPredictionPoint(
+      e.latlng.lat,
+      e.latlng.lng,
+      {
+        centerMap: false,
+        source: 'map'
+      }
+    );
+
+  } catch (error) {
+
+    $('prediction-message').textContent =
+      error.message;
+  }
+}
+
+
+function useManualPredictionCoordinates() {
+
+  const latValue =
+    $('manual-pred-lat')
+      .value
+      .trim();
+
+  const lonValue =
+    $('manual-pred-lon')
+      .value
+      .trim();
+
+
+  const errorElement =
+    $('manual-coordinate-error');
+
+
+  if (
+    latValue === '' ||
+    lonValue === ''
+  ) {
+
+    errorElement.textContent =
+      'Escribe la latitud y la longitud.';
+
+    errorElement
+      .classList
+      .remove(
+        'hidden'
+      );
+
+    return;
+  }
+
+
+  try {
+
+    setPredictionPoint(
+      latValue,
+      lonValue,
+      {
+        centerMap: true,
+        source: 'manual'
+      }
+    );
+
+  } catch (error) {
+
+    errorElement.textContent =
+      error.message;
+
+    errorElement
+      .classList
+      .remove(
+        'hidden'
+      );
+  }
+}
+
+
+function renderPredictionResult(result) {
+
+  if (
+    !result ||
+    !result.prediction
+  ) {
+    return;
+  }
+
+  const prediction = result.prediction;
+
+  const ambiguity =
+    result.ambiguity || null;
+
+  const isAmbiguous =
+    Boolean(
+      ambiguity?.ambiguous
+    );
+  if (isAmbiguous) {
+
+    $('result-activity').textContent =
+      'Zona altamente ambigua';
+
+    $('result-scian').textContent =
+      '—';
+
+    $('result-probability').textContent =
+      'No concluyente';
+
+  } else {
+
+    $('result-activity').textContent =
+      prediction.activity || '—';
+
+    $('result-scian').textContent =
+      prediction.scian || '—';
+
+    $('result-probability').textContent =
+      probabilityLabel(
+        prediction.probability,
+        2
+      );
+  }
+
+  const hero =
+    document.querySelector(
+      '.prediction-result-hero'
+    );
+
+  if (hero) {
+
+    hero.classList.toggle(
+      'ambiguous-result',
+      isAmbiguous
+    );
+
+    hero.classList.toggle(
+      'accepted-result',
+      !isAmbiguous
+    );
+  }
+  const statusElement =
+    $('result-confidence-status');
+
+  if (statusElement) {
+
+    if (isAmbiguous) {
+
+      statusElement.className =
+        'prediction-confidence-status ambiguous';
+
+      statusElement.textContent =
+        'Alta ambigüedad';
+
+    } else {
+
+      statusElement.className =
+        'prediction-confidence-status accepted';
+
+      statusElement.textContent =
+        'Predicción suficientemente clara';
+    }
+  }
+  const ambiguityMessage =
+    $('result-ambiguity-message');
+
+  if (ambiguityMessage) {
+
+    if (isAmbiguous) {
+
+      ambiguityMessage.classList.remove(
+        'hidden'
+      );
+
+      ambiguityMessage.innerHTML = `
+        <strong>
+          El modelo se abstuvo de emitir una actividad definitiva.
+        </strong>
+
+        <span>
+          La distribución de probabilidades no cumple
+          los criterios de claridad establecidos mediante
+          validación espacial. Consulta las tres alternativas
+          principales.
+        </span>
+      `;
+
+    } else {
+
+      ambiguityMessage.classList.add(
+        'hidden'
+      );
+
+      ambiguityMessage.innerHTML = '';
+    }
+  }
+  $('result-lat').textContent =
+    Number(
+      result.lat
+    ).toFixed(6);
+
+  $('result-lon').textContent =
+    Number(
+      result.lon
+    ).toFixed(6);
+
+  $('result-nearby').textContent =
+    fmt(
+      result.nearby_units
+    );
+
+  $('result-dominant').textContent =
+    result.dominant_activity ||
+    'Sin actividad observada';
+
+
+  if (result.cell) {
+
+    $('result-cell').textContent =
+      `${result.cell.x}, ${result.cell.y}`;
+
+    $('result-cell-size').textContent =
+      `${fmt(result.cell.size_m)} m`;
+
+    $('result-occupied').textContent =
+      result.cell.occupied
+        ? 'Sí'
+        : 'No';
+
+  } else {
+
+    $('result-cell').textContent =
+      '—';
+
+    $('result-cell-size').textContent =
+      '—';
+
+    $('result-occupied').textContent =
+      '—';
+  }
+
+
+  $('result-model-version').textContent =
+    result.model_version || '—';
+
+  const policyElement =
+    $('result-policy-detail');
+
+  if (
+    policyElement &&
+    ambiguity
+  ) {
+
+    const pSelected =
+      probabilityLabel(
+        ambiguity.p_selected,
+        3
+      );
+
+    const entropy =
+      Number(
+        ambiguity.entropy_norm
+      ).toFixed(3);
+
+    policyElement.innerHTML = `
+  <span>
+    Probabilidad de clase seleccionada:
+    <strong>${pSelected}</strong>
+  </span>
+
+  <span>
+    Umbral mínimo:
+    <strong>
+      ${probabilityLabel(
+        ambiguity.thresholds.p_selected_min,
+        3
+      )}
+    </strong>
+  </span>
+
+  <span>
+    Entropía normalizada:
+    <strong>${entropy}</strong>
+  </span>
+
+  <span>
+    Entropía máxima:
+    <strong>
+      ${Number(
+        ambiguity.thresholds.entropy_max
+      ).toFixed(3)}
+    </strong>
+  </span>
+`;
+  }
+
+  const groupedNote =
+    $('result-grouped-note');
+
+  if (
+    prediction.grouped &&
+    !isAmbiguous
+  ) {
+
+    groupedNote.classList.remove(
+      'hidden'
+    );
+
+    const ids =
+      prediction.included_activity_ids ||
+      [];
+
+    $('result-grouped-text').textContent =
+      ids.length
+        ? `Esta salida agrupa las actividades ${ids.join(', ')} debido a su baja representación individual como clase predominante.`
+        : 'Esta salida representa un conjunto de actividades con baja representación individual.';
+
+  } else {
+
+    groupedNote.classList.add(
+      'hidden'
+    );
+
+    $('result-grouped-text').textContent =
+      '';
+  }
+
+  const top3Container =
+    $('prediction-top3');
+
+  const top3 =
+    Array.isArray(
+      result.top3
+    )
+      ? result.top3
+      : [];
+
+  if (!top3.length) {
+
+    top3Container.innerHTML = `
+      <p class="muted">
+        No se recibieron alternativas del modelo.
+      </p>
+    `;
+
+    return;
+  }
+
+
+  top3Container.innerHTML =
+    top3
+      .map(
+        (item, index) => {
+
+          const probability =
+            Number(
+              item.probability || 0
+            );
+
+          const width =
+            Math.max(
+              0,
+              Math.min(
+                100,
+                probability * 100
+              )
+            );
+
+          const scian =
+            item.scian
+              ? `SCIAN ${escapeHtml(item.scian)}`
+              : 'Clase agrupada';
+
+          return `
+            <article
+              class="prediction-top3-item
+              ${index === 0 ? 'top-result' : ''}"
+            >
+
+              <div class="prediction-top3-rank">
+                ${index + 1}
+              </div>
+
+              <div class="prediction-top3-body">
+
+                <div class="prediction-top3-head">
+
+                  <div>
+
+                    <strong>
+                      ${escapeHtml(
+                        item.activity ||
+                        'Sin nombre'
+                      )}
+                    </strong>
+
+                    <span>
+                      ${scian}
+                    </span>
+
+                  </div>
+
+                  <b>
+                    ${probabilityLabel(
+                      probability,
+                      2
+                    )}
+                  </b>
+
+                </div>
+
+                <div class="prediction-probability-track">
+
+                  <div
+                    class="prediction-probability-fill"
+                    style="width:${width}%"
+                  ></div>
+
+                </div>
+
+              </div>
+
+            </article>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+async function runPrediction() {
+
+  if (!selectedPredictionPoint) {
+    return;
+  }
+
+  const button =
+    $('predict-btn');
+
+  button.disabled = true;
+
+  button.textContent =
+    'Analizando…';
+
+  $('prediction-message').textContent =
+    'Construyendo las 422 variables y ejecutando el modelo…';
+
+  try {
+
+    const result = await api(
+      '/predicciones',
+      {
+        method:
+          'POST',
+
+        headers:
+          {
+            'Content-Type':
+              'application/json',
+          },
+
+        body:
+          JSON.stringify(
+            {
+              lat:
+                selectedPredictionPoint.lat,
+
+              lon:
+                selectedPredictionPoint.lng,
+            }
+          ),
+      }
+    );
+
+
+    $('pred-nearby').textContent =
+      fmt(
+        result.nearby_units
+      );
+
+    $('pred-dominant').textContent =
+      result.dominant_activity ||
+      'Sin actividad cercana';
+
+    $('prediction-message').textContent =
+      result.message;
+
+
+    if (
+      result.status !== 'ok' ||
+      !result.prediction
+    ) {
+
+      clearPredictionResult();
+
+      return;
+    }
+
+
+    lastPredictionResult =
+      result;
+
+    renderPredictionResult(
+      result
+    );
+
+    setPredictionResultEnabled(
+      true
+    );
+
+    switchView(
+      'resultado-prediccion'
+    );
+
   } catch (err) {
-    $('prediction-message').textContent = `Error: ${err.message}`;
+
+    clearPredictionResult();
+
+    $('prediction-message').textContent =
+      `Error: ${err.message}`;
+
+  } finally {
+
+    button.disabled =
+      !selectedPredictionPoint;
+
+    button.textContent =
+      'Analizar punto seleccionado';
   }
 }
 
@@ -1865,14 +2544,16 @@ function switchView(name) {
   $(`view-${name}`).classList.add('active');
   document.querySelector(`.nav-item[data-view="${name}"]`)?.classList.add('active');
 
-  const labels = {
+const labels = {
   dashboard: 'Dashboard principal',
   alcaldia: 'Consulta por alcaldía',
   detalle: 'Detalle de unidad económica',
   prediccion: 'Módulo de predicción',
+  'resultado-prediccion': 'Resultado de predicción',
   acerca: 'Acerca del sistema',
 };
   const subtitles = {
+
   dashboard:
     'Panorama general de las unidades económicas registradas en la Ciudad de México.',
 
@@ -1884,6 +2565,9 @@ function switchView(name) {
 
   prediccion:
     'Selecciona una ubicación para analizar su entorno económico.',
+
+  'resultado-prediccion':
+    'Resultado generado por el modelo de actividad económica predominante.',
 
   acerca:
     'Información general, fuentes de datos y arquitectura del sistema.',
@@ -1974,6 +2658,53 @@ $('detail-empty-back').addEventListener(
   }
 );
 $('predict-btn').addEventListener('click', runPrediction);
+$('use-manual-coordinates').addEventListener(
+  'click',
+  useManualPredictionCoordinates
+);
 
+
+[
+  'manual-pred-lat',
+  'manual-pred-lon'
+].forEach(
+  id => {
+
+    $(id).addEventListener(
+      'keydown',
+      event => {
+
+        if (
+          event.key === 'Enter'
+        ) {
+
+          event.preventDefault();
+
+          useManualPredictionCoordinates();
+        }
+      }
+    );
+  }
+);
+$('prediction-new-point').addEventListener(
+  'click',
+  () => {
+
+    switchView(
+      'prediccion'
+    );
+  }
+);
+
+
+$('prediction-result-back').addEventListener(
+  'click',
+  () => {
+
+    switchView(
+      'prediccion'
+    );
+  }
+);
 initMaps();
 bootstrap();
