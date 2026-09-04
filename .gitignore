@@ -19,3 +19,19 @@ bd_plain.sql
 # Artefactos ML generados localmente
 backend/models/final_422/*.joblib
 denue_2026.sql
+# Local / secretos
+.env
+.env.local
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# SO / IDE
+.DS_Store
+Thumbs.db
+.vscode/
