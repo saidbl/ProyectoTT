@@ -46,7 +46,6 @@ MACRO_NAMES = {
     4: "Servicios al consumidor, recreativos y públicos",
 }
 
-# Actividad_id del proyecto -> macroclase.
 def actividad_to_macro(a: int) -> int:
     a = int(a)
     if 1 <= a <= 6:
@@ -79,13 +78,11 @@ def parse_personal_ocupado(value: Any) -> float:
     s = str(value).strip().lower()
     if not s or s in {"nan", "none", "\\n"}:
         return np.nan
-    # Formatos típicos DENUE: "0 a 5 personas", "6 a 10 personas", "251 y más personas".
     import re
 
     nums = [int(x) for x in re.findall(r"\d+", s)]
     if "más" in s or "mas" in s:
         if nums:
-            # Tope abierto: se usa un valor conservador ligeramente mayor al umbral.
             return float(nums[0] * 1.25)
     if len(nums) >= 2:
         return float((nums[0] + nums[1]) / 2.0)
@@ -209,7 +206,6 @@ def build_spatial_context(
         (target_cells[:, 1] + 0.5) * cell_size,
     ]).astype(float)
     groups_xy = np.floor(coords_m / float(block_size_meters)).astype(int)
-    # Factorización estable de pares (bx,by) sin depender de rangos arbitrarios.
     _, groups = np.unique(groups_xy, axis=0, return_inverse=True)
 
     coord_center = coords_m.mean(axis=0)
@@ -311,7 +307,7 @@ def _neighbor_accumulations(context: SpatialContext, cx: int, cy: int) -> tuple[
         for dx in range(-r, r + 1):
             for dy in range(-r, r + 1):
                 if dx == 0 and dy == 0:
-                    continue  # PRINCIPIO INNEGOCIABLE: centro oculto.
+                    continue  
                 c, e = _safe_cell(context, cx + dx, cy + dy)
                 csum += c
                 esum += e
@@ -334,7 +330,6 @@ def _kernel_features(context: SpatialContext, cx: int, cy: int, bandwidth_cells:
             d = math.sqrt(dx * dx + dy * dy)
             if d == 0:
                 continue
-            # Kernel gaussiano no normalizado; suficiente como feature de intensidad relativa.
             w = math.exp(-0.5 * (d / max(bandwidth_cells, 0.25)) ** 2)
             c, _ = _safe_cell(context, cx + dx, cy + dy)
             out += w * c
@@ -356,7 +351,6 @@ def _knn_distance_features(context: SpatialContext, x_m: float, y_m: float, ks=(
         qk = min(len(coords), max(ks) + 2)
         dists, _ = tree.query(point, k=qk)
         dists = np.atleast_1d(dists).reshape(-1)
-        # Si la celda objetivo contiene esa macroclase, habrá distancia 0. Se elimina para evitar fuga.
         dists = dists[dists > 1e-9]
         for k in ks:
             if len(dists) >= k:
@@ -376,7 +370,6 @@ def build_feature_for_cell(context: SpatialContext, cx: int, cy: int, profile: s
     names: list[str] = []
 
     if profile == "core26":
-        # Replica conceptual del cumulative_v2 de 4 macroclases, radios 1 y 2.
         for r in (1, 2):
             c = cumulative_counts[r]
             total = float(c.sum())
@@ -393,7 +386,6 @@ def build_feature_for_cell(context: SpatialContext, cx: int, cy: int, profile: s
     if profile not in {"spatial_v4", "spatial_v4_coords"}:
         raise ValueError(f"Perfil de features desconocido: {profile}")
 
-    # Multiescala: acumulados y anillos independientes hasta 1500 m.
     for r in context.radii:
         v, n = _summary_features(cumulative_counts[r], f"cum_r{r}")
         values.extend(v); names.extend(n)
@@ -405,7 +397,6 @@ def build_feature_for_cell(context: SpatialContext, cx: int, cy: int, profile: s
             v, n = _employment_features(ring_emp[r], ring_counts[r], f"ring_r{r}")
             values.extend(v); names.extend(n)
 
-    # Gradientes espaciales entre escalas; ayudan a detectar transición hacia corredores.
     rmin, rmax = min(context.radii), max(context.radii)
     for m in range(4):
         p_near = cumulative_counts[rmin][m] / max(cumulative_counts[rmin].sum(), 1.0)
@@ -415,7 +406,6 @@ def build_feature_for_cell(context: SpatialContext, cx: int, cy: int, profile: s
         values.append(float(math.log1p(cumulative_counts[rmax][m]) - math.log1p(cumulative_counts[rmin][m])))
         names.append(f"gradient_logcount_m{m+1}_r{rmin}_r{rmax}")
 
-    # Intensidad ponderada por distancia para varios bandwidths.
     for bw in (1.0, 2.0, 3.5, 5.0):
         kv = _kernel_features(context, cx, cy, bw)
         total = max(float(kv.sum()), EPS)
@@ -474,7 +464,6 @@ def context_to_serializable(context: SpatialContext) -> dict[str, Any]:
 
 
 def context_from_serializable(data: dict[str, Any]) -> SpatialContext:
-    # Campos de targets no son necesarios para inferencia individual.
     return SpatialContext(
         cell_size=int(data["cell_size"]),
         radii=tuple(int(x) for x in data["radii"]),
@@ -639,7 +628,6 @@ def tune_thresholds(y_true: np.ndarray, p1: np.ndarray, p2: np.ndarray, p3: np.n
         grid = np.round(np.arange(0.35, 0.676, 0.025), 3)
     thresholds = [0.5, 0.5, 0.5]
     best_score = -1.0
-    # Coordinate descent: suficiente y mucho más barato que grid 3D exhaustivo.
     for _ in range(4):
         improved = False
         for j in range(3):
@@ -743,7 +731,6 @@ def stage_oof_predictions(
     seed: int,
 ) -> np.ndarray:
     mask_stage, y_stage_all = stage_labels(y_macro, stage)
-    # Split se hace con la multicategoría original para preservar geografía y composición.
     splitter = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
     oof = np.full(len(y_macro), np.nan, dtype=float)
     for fold, (tr, va) in enumerate(splitter.split(np.zeros(len(y_macro)), y_macro, groups), start=1):
